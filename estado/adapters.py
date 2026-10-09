@@ -1,0 +1,278 @@
+"""Translate what each sibling project publishes into signals (see CONTRATO.md).
+
+One function per source. Each returns (coverage, signals). When a sibling publishes its own
+signals.json, its adapter shrinks to reading that file. Municipality names are resolved to INE
+codes with `resolve`, a callable (name, provinces) -> code | None built from the IGN layer.
+"""
+
+from __future__ import annotations
+
+from datetime import date, timedelta
+from typing import Callable
+
+from shapely import STRtree, box
+from shapely.geometry import Point
+
+from . import config
+
+Resolve = Callable[[str, list[str]], "str | None"]
+
+
+def _signal(source: str, id: str, kind: str, day: str, title: str, url: str, precision: str, **kw) -> dict:
+    return {"source": source, "id": id, "kind": kind, "date": day, "title": title, "url": url,
+            "sites": kw.pop("sites", []), "municipalities": kw.pop("municipalities", []),
+            "precision": precision, "deadline": kw.pop("deadline", None), "status": kw.pop("status", None),
+            "value": kw.pop("value", None), "details": kw}
+
+
+def _munis(resolve: Resolve, names: list[str] | None, provinces: list[str] | None) -> list[str]:
+    return sorted({c for n in names or [] if (c := resolve(n, provinces or []))})
+
+
+def observatorio(state: dict, resolve: Resolve) -> tuple[dict, list[dict]]:
+    """Notices in public consultation and the resolutions paired with them.
+
+    A notice reaches a site through its cadastral footprint when there is one, and otherwise
+    through the municipalities it names. Resolutions carry no geometry: they inherit the sites of
+    the notice observatorio paired them with.
+    """
+    src = "observatorio-alegaciones"
+    out, by_id = [], {}
+    for n in state["anuncios"].values():
+        footprint = (n.get("footprint") or {}).get("natura") or []
+        natura, precision = (footprint, "parcelas") if footprint else (n.get("natura") or [], "municipio")
+        s = _signal(src, n["identificador"], "notice", n["fecha"], n["titulo"], n["url_html"], precision,
+                    sites=[{"code": x.get("sitecode") or x.get("codigo")} for x in natura],
+                    municipalities=_munis(resolve, n.get("municipios"), n.get("provincias")),
+                    deadline=n.get("fecha_limite") or None,
+                    value={"amount": n["potencia_mw"], "unit": "MW"} if n.get("potencia_mw") else None,
+                    category=n.get("categoria"), promoter=n.get("promotor") or None,
+                    file=n.get("expediente") or None, department=n.get("departamento"))
+        out.append(s)
+        by_id[s["id"]] = s
+    for r in state["resoluciones"].values():
+        paired = by_id.get(r.get("emparejado_con") or "")
+        out.append(_signal(src, r["identificador"], "resolution", r["fecha"], r["titulo"], r["url_html"],
+                           paired["precision"] if paired else "municipio",
+                           sites=paired["sites"] if paired else [],
+                           municipalities=_munis(resolve, r.get("municipios"), r.get("provincias")),
+                           status=r.get("sentido_etiqueta") or r.get("sentido"),
+                           value={"amount": r["potencia_mw"], "unit": "MW"} if r.get("potencia_mw") else None,
+                           category=r.get("categoria"), promoter=r.get("promotor") or None,
+                           file=r.get("expediente") or None, paired_with=paired["id"] if paired else None))
+    cov = {"label": "Toda España, desde el 27 de julio de 2026",
+           "sites": None, "note": "Anuncios del BOE con trámite ambiental, leídos cada mañana."}
+    return cov, out
+
+
+def vigia(fc: dict, resolve: Resolve, today: date, window_days: int) -> tuple[dict, list[dict]]:
+    """Fires of the last window_days, with the hectares inside each Natura site.
+
+    The Sentinel-2 burnt area is used when vigía has it; otherwise the extent of the hot pixels,
+    which overstates small fires (a 1 ha fire lights a 14 ha VIIRS pixel).
+    """
+    since = (today - timedelta(days=window_days)).isoformat()
+    out = []
+    for f in fc["features"]:
+        p = f["properties"]
+        day = p["primera"][:10]
+        if day < since:
+            continue
+        s2 = p.get("perimetro_s2") or {}
+        natura, precision = (s2["natura"], "perimetro") if s2.get("natura") else (p.get("natura") or [], "focos")
+        place = p.get("lugar") or {}
+        ha = s2.get("ha") if s2.get("natura") else p.get("ha_focos")
+        out.append(_signal("vigia-incendios", p["id"], "fire", day,
+                           f"Incendio en {place.get('municipio') or 'lugar sin identificar'}",
+                           f"{config.PAGES}/vigia-incendios/#{p['id']}", precision,
+                           sites=[{"code": n["codigo"], "ha": n.get("ha")} for n in natura],
+                           municipalities=_munis(resolve, [place["municipio"]] if place.get("municipio") else [],
+                                                 [place.get("provincia")] if place.get("provincia") else []),
+                           status="definitivo" if s2.get("definitivo") else "provisional" if s2 else None,
+                           value={"amount": ha, "unit": "ha"} if ha else None,
+                           province=place.get("provincia"), point=p.get("centro")))
+    cov = {"label": "Toda España", "sites": None,
+           "note": f"Focos VIIRS de NASA FIRMS de los últimos {window_days} días; superficie quemada con Sentinel-2 cuando la hay."}
+    return cov, out
+
+
+def centinela(fc: dict, watched: list[str], resolve: Resolve, states: set[str]) -> tuple[dict, list[dict]]:
+    """Land-cover change alerts in the sites centinela watches (Cantabria for now)."""
+    out = []
+    for f in fc["features"]:
+        p = f["properties"]
+        if p["estado"] not in states:
+            continue
+        base = f"{config.PAGES}/centinela-natura/"
+        out.append(_signal("centinela-natura", p["id"], "land_change", p["detectada"],
+                           p.get("clase_nombre") or "Cambio de cubierta", base + "#" + p["id"], "pixeles",
+                           sites=[{"code": e["codigo"]} for e in p.get("espacios") or []],
+                           municipalities=_munis(resolve, p.get("municipios"), ["Cantabria"]),
+                           status=p["estado"], value={"amount": p["ha"], "unit": "ha"},
+                           permit=p.get("cruce_nombre"),
+                           before=base + p["foto_antes"] if p.get("foto_antes") else None,
+                           after=base + p["foto_despues"] if p.get("foto_despues") else None,
+                           before_date=p.get("fecha_antes"), after_date=p.get("fecha_despues"),
+                           point=p["centro"][::-1] if p.get("centro") else None))  # centinela stores [lat, lon]
+    cov = {"label": "Cantabria", "sites": sorted(watched),
+           "note": "Cambios de vegetación con Sentinel-2, revisados cada mes."}
+    return cov, out
+
+
+def humedales(wetlands: list[tuple[dict, list[dict], set[str]]], state_of: Callable[[list[dict]], dict | None]
+              ) -> tuple[dict, list[dict]]:
+    """The latest surface-water state of each watched wetland, as one signal per wetland."""
+    out, watched = [], set()
+    for meta, rows, inside in wetlands:
+        watched |= inside
+        st = state_of(rows)
+        if not st:
+            continue
+        if st["dry_ref"]:
+            title = f"{meta['name']}: {st['water_ha']:.0f} ha de agua; en ese mes suele estar seca"
+        elif st["ratio"] is not None:
+            title = f"{meta['name']}: {st['ratio'] * 100:.0f} % del agua normal en ese mes"
+        else:
+            title = f"{meta['name']}: {st['water_ha']:.0f} ha de agua"
+        out.append(_signal("vigilancia-humedales", meta["slug"], "wetland_water", st["date"], title,
+                           f"{config.PAGES}/vigilancia-humedales/", "lamina",
+                           sites=[{"code": c} for c in sorted(inside)],
+                           value={"amount": st["water_ha"], "unit": "ha"}, status="vigente" if st["current"] else "antiguo",
+                           **{k: st[k] for k in ("ratio", "ref_ha", "ref_years", "dry_ref", "current")}, name=meta["name"]))
+    cov = {"label": "Seis humedales", "sites": sorted(watched),
+           "note": "Agua libre con Sentinel-2 desde 2017, frente a la mediana del mismo mes en años anteriores."}
+    return cov, out
+
+
+def chains(grafo: dict, cartera: dict, ids: set[str]) -> dict[str, list[dict]]:
+    """Who is behind each BOE act: company → business group → listed company.
+
+    Grafo links BOE acts to companies (by the act ids each company appears in) and companies to
+    groups; cartera links companies to listed companies through their consolidated accounts or the
+    sole-shareholder chain in BORME. A listed company reached only through another member of the
+    group is marked as such: the group itself is grafo's inference, not a published fact.
+    Natural persons (PF- keys) never appear.
+    """
+    socs = grafo["sociedades"]
+    by_act: dict[str, set[str]] = {}
+    for key, s in socs.items():
+        for act in s.get("actos_boe") or []:
+            if act in ids:
+                by_act.setdefault(act, set()).add(key)
+    for inst in grafo["instalaciones"].values():
+        holders = [t for t in inst.get("titulares") or [] if t in socs]
+        for act in inst.get("actos") or []:
+            if act["id"] in ids:
+                by_act.setdefault(act["id"], set()).update(holders)
+    group_of = {m: g for g in grafo["grupos"] for m in g["sociedades"]}
+    listed_of: dict[str, dict] = {}
+    for c in cartera["cotizadas"]:
+        for s in c["sociedades"]:
+            listed_of.setdefault(s["id"], c)
+    grafo_url = f"{config.PAGES}/grafo-promotores/"
+    out: dict[str, list[dict]] = {}
+    for act, keys in by_act.items():
+        for key in sorted(k for k in keys if not k.startswith("PF-")):
+            links = [{"name": (socs[key].get("nombres") or [key])[0], "role": "promotor", "url": grafo_url}]
+            g = group_of.get(key)
+            if g:
+                root = socs.get(socs[key].get("grupo") or "", {})
+                root_name = (root.get("nombres") or [g["id"][2:]])[0]
+                links.append({"name": f"grupo {root_name} ({len(g['sociedades'])} sociedades)",
+                              "role": "grupo", "url": grafo_url})
+            c, via = listed_of.get(key), "directa"
+            if not c and g:
+                c = next((listed_of[m] for m in g["sociedades"] if m in listed_of), None)
+                via = "por el grupo"
+            if c:
+                links.append({"name": c["nombre"], "role": "cotizada", "via": via,
+                              "url": f"{config.PAGES}/cartera-cotizadas/#c={c['id']}&t=sociedades"})
+            out.setdefault(act, []).append({"links": links})
+    return out
+
+
+def caudal(stations: list[dict], flows: dict[str, list[dict]], requirements: list[dict], locate: Callable,
+           today: date, window_days: int = 30) -> tuple[dict, list[dict]]:
+    """Days below the legal minimum flow in the last window_days, one signal per station.
+
+    The minimum is the ordinary-regime monthly value of the basin plan. Only days with a reading
+    count; a station with no day below the minimum gives no signal.
+    """
+    req = {r["station_id"]: r for r in requirements if r.get("regime") == "ordinary" and not r.get("valid_to")}
+    since = (today - timedelta(days=window_days)).isoformat()
+    out, watched = [], set()
+    for st in stations:
+        r = req.get(st["station_id"])
+        if r:
+            watched.update(locate(float(st["lon"]), float(st["lat"]))[0])
+        rows = [x for x in flows.get(st["station_id"], []) if x["date"] >= since and x.get("q_mean") not in (None, "")]
+        if not r or not rows:
+            continue
+        below = [x for x in rows if float(x["q_mean"]) < float(r[f"m{int(x['date'][5:7]):02d}"])]
+        if not below:
+            continue
+        last = max(rows, key=lambda x: x["date"])
+        lon, lat = float(st["lon"]), float(st["lat"])
+        sites, munis = locate(lon, lat)
+        out.append(_signal("caudal-ecologico", st["station_id"], "river_flow", last["date"],
+                           f"{st['name']}: {len(below)} de {len(rows)} días por debajo del caudal mínimo",
+                           "https://github.com/Asensio94/caudal-ecologico", "punto",
+                           sites=[{"code": c} for c in sites], municipalities=munis,
+                           value={"amount": float(last["q_mean"]), "unit": "m³/s"},
+                           minimum=float(r[f"m{int(last['date'][5:7]):02d}"]), days_below=len(below),
+                           days=len(rows), river=st.get("river"), point=[lon, lat]))
+    cov = {"label": f"{len(req)} puntos del Júcar y el Guadiana", "sites": sorted(watched),
+           "note": "Caudal diario de los SAIH frente al caudal ecológico mínimo del plan hidrológico."}
+    return cov, out
+
+
+def subnocte(forecast: list[dict], resolve: Resolve, today: date) -> tuple[dict, list[dict]]:
+    """Tonight's nocturnal migration forecast for the Spanish cities with a usable radar."""
+    rows = [r for r in forecast if r.get("country") == "ES" and r.get("night", "")[:10] >= today.isoformat()]
+    if rows:
+        first = min(r["night"] for r in rows)
+        rows = [r for r in rows if r["night"] == first]
+    label = {"very high": "muy alta", "high": "alta", "moderate": "moderada", "low": "baja"}
+    out = []
+    for r in rows:
+        ine = resolve(r["city"], [])
+        out.append(_signal("sub-nocte", f"{r['city']}-{r['night'][:10]}", "migration", r["night"][:10],
+                           f"{r['city']}: migración nocturna {label.get(r['level'], r['level'])} prevista",
+                           f"{config.PAGES}/sub-nocte/", "radar", municipalities=[ine] if ine else [],
+                           status=r["level"], city=r["city"],
+                           point=[float(r["lon"]), float(r["lat"])] if r.get("lon") else None))
+    cov = {"label": "Ciudades con radar meteorológico", "sites": [],
+           "note": "Previsión de paso de aves migratorias por la noche, a partir de radares y meteorología."}
+    return cov, out
+
+
+def tendidos(regions: dict[str, tuple[list[dict], str]], shapes: dict, high_share: float = 0.1
+             ) -> tuple[dict, list[dict]]:
+    """High-risk pylons and spans inside each site, per modelled region.
+
+    High risk is the top high_share of risk_max within the region. Only counts are published: the
+    per-element species lists stay in the source project.
+    """
+    codes = list(shapes)
+    tree = STRtree([shapes[c] for c in codes])
+    out, watched = [], set()
+    for region, (rows, day) in regions.items():
+        rows = [r for r in rows if r.get("risk_max") not in (None, "")]
+        if not rows:
+            continue
+        lons, lats = [float(r["lon"]) for r in rows], [float(r["lat"]) for r in rows]
+        watched |= {codes[i] for i in tree.query(box(min(lons), min(lats), max(lons), max(lats)), predicate="intersects")}
+        cut = sorted(float(r["risk_max"]) for r in rows)[int(len(rows) * (1 - high_share))]
+        count: dict[str, int] = {}
+        for r in rows:
+            if float(r["risk_max"]) >= cut:
+                for i in tree.query(Point(float(r["lon"]), float(r["lat"])), predicate="intersects"):
+                    count[codes[i]] = count.get(codes[i], 0) + 1
+        for code, n in count.items():
+            out.append(_signal("riesgo-tendidos-aves", f"{region}-{code}", "power_line", day,
+                               f"{n} apoyos y vanos de riesgo alto para las aves dentro del espacio",
+                               f"{config.PAGES}/riesgo-tendidos-aves/{region}/map.es.html", "punto",
+                               sites=[{"code": code}], value={"amount": n, "unit": "elementos"}, region=region))
+    cov = {"label": "Cantabria y el Estrecho", "sites": sorted(watched),
+           "note": "Riesgo de electrocución y colisión de cada apoyo y vano de OpenStreetMap, modelado cada mes."}
+    return cov, out

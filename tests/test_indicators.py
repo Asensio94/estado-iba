@@ -13,55 +13,14 @@ def _natura():
     ]}
 
 
+def _sig(kind, sites, precision="municipio", deadline=None, value=None, munis=(), **details):
+    return {"source": "s", "id": kind, "kind": kind, "date": "2026-09-01", "title": kind, "url": "u",
+            "sites": sites, "municipalities": list(munis), "precision": precision, "deadline": deadline,
+            "status": None, "value": value, "details": details}
+
+
 def test_load_sites_keeps_zepa_and_mixed():
     assert set(I.load_sites(_natura(), "ZEPA")) == {"ES1", "ES2"}
-
-
-def _notice(ident, deadline, municipal, footprint=None):
-    return {"identificador": ident, "fecha": "2026-09-01", "titulo": ident, "url_html": "u",
-            "fecha_limite": deadline, "natura": [{"sitecode": c} for c in municipal],
-            "footprint": {"natura": [{"sitecode": c} for c in footprint]} if footprint is not None else None}
-
-
-def test_projects_prefers_footprint_and_pairs_resolutions():
-    state = {
-        "anuncios": {
-            "A": _notice("A", "2026-10-20", ["ES1", "ES2"], footprint=["ES2"]),
-            "B": _notice("B", "2026-09-10", ["ES1"]),
-        },
-        "resoluciones": {"R": {"identificador": "R", "fecha": "2026-09-30", "titulo": "R", "url_html": "u",
-                               "emparejado_con": "B", "sentido_etiqueta": "Favorable"}},
-    }
-    out = I.projects(state, {"ES1", "ES2"}, date(2026, 10, 9))
-    assert [p["id"] for p in out["ES2"]] == ["A"]
-    assert out["ES2"][0]["precision"] == "parcelas" and out["ES2"][0]["open"]
-    es1 = {p["id"]: p for p in out["ES1"]}
-    assert set(es1) == {"B", "R"}  # A's footprint does not reach ES1
-    assert es1["B"]["precision"] == "municipio" and not es1["B"]["open"]
-    assert es1["R"]["outcome"] == "Favorable"
-
-
-def test_fires_prefer_sentinel2_and_respect_window():
-    fc = {"features": [
-        {"properties": {"id": "F1", "primera": "2026-08-01T12:00", "natura": [{"codigo": "ES1", "ha": 50}],
-                        "perimetro_s2": {"definitivo": True, "natura": [{"codigo": "ES1", "ha": 12.5}]}}},
-        {"properties": {"id": "F0", "primera": "2025-01-01T12:00", "natura": [{"codigo": "ES1", "ha": 9}]}},
-    ]}
-    out = I.fires(fc, {"ES1"}, date(2026, 10, 9), 365)
-    assert out["ES1"] == [{"id": "F1", "date": "2026-08-01", "ha": 12.5, "source": "sentinel2",
-                           "final": True, "place": None}]
-
-
-def test_land_change_distinguishes_unwatched_from_quiet():
-    fc = {"features": [
-        {"properties": {"id": "C1", "estado": "confirmada", "detectada": "2026-06-01", "ha": 2.0,
-                        "espacios": [{"codigo": "ES1"}]}},
-        {"properties": {"id": "C2", "estado": "descartada", "detectada": "2026-06-02", "ha": 3.0,
-                        "espacios": [{"codigo": "ES1"}]}},
-    ]}
-    out = I.land_change(fc, {"ES1", "ES2"}, {"ES1", "ES2", "ES3"}, {"confirmada", "provisional"})
-    assert [a["id"] for a in out["ES1"]] == ["C1"]
-    assert out["ES2"] == [] and "ES3" not in out
 
 
 def test_wetland_state_against_same_month():
@@ -74,16 +33,38 @@ def test_wetland_state_against_same_month():
     assert I.wetland_state(rows[-2:], date(2026, 10, 9), {"ok"}, 3, 45)["ratio"] is None
 
 
-def test_panel_marks_unwatched_land_as_none():
-    sites = I.load_sites(_natura(), "ZEPA")
-    rows = I.panel(sites, {}, {}, {"ES1": []}, {})
-    by = {r["code"]: r for r in rows}
-    assert by["ES1"]["land"] == [] and by["ES2"]["land"] is None
-
-
 def test_wetland_state_gives_no_ratio_for_usually_dry_month():
     rows = [{"date": f"{y}-08-10", "water_ha": "0.0", "quality": "ok"} for y in (2021, 2022, 2023)]
     rows += [{"date": "2025-02-10", "water_ha": "1200", "quality": "ok"},
              {"date": "2026-08-18", "water_ha": "330", "quality": "ok"}]
     st = I.wetland_state(rows, date(2026, 9, 1), {"ok"}, 3, 45)
     assert st["dry_ref"] and st["ratio"] is None and st["water_ha"] == 330
+
+
+def test_summary_counts_and_tells_unwatched_from_quiet():
+    sites = I.load_sites(_natura(), "ZEPA")
+    signals = [
+        _sig("notice", [{"code": "ES1"}], "parcelas", deadline="2026-10-20"),
+        _sig("notice", [{"code": "ES1"}, {"code": "ES2"}], deadline="2026-09-10"),
+        _sig("resolution", [{"code": "ES1"}]),
+        _sig("fire", [{"code": "ES1", "ha": 12.5}, {"code": "ES2", "ha": None}], "perimetro"),
+        _sig("land_change", [{"code": "ES1"}], "pixeles"),
+        _sig("wetland_water", [{"code": "ES2"}], "lamina", ratio=0.4, current=True),
+        _sig("wetland_water", [{"code": "ES2"}], "lamina", ratio=0.1, current=False),
+    ]
+    coverage = {"centinela-natura": {"sites": ["ES1"]}, "riesgo-tendidos-aves": {"sites": None}}
+    n = I.summary(sites, signals, coverage, date(2026, 10, 9))
+    assert n["ES1"] == {"notices": 2, "precise": 1, "open": 1, "resolutions": 1, "fires": 1, "fire_ha": 12.5,
+                        "land": 1, "lines": 0, "flow": 0, "water": None}
+    assert n["ES2"]["land"] is None  # centinela does not watch ES2: unknown, not zero
+    assert n["ES2"]["lines"] == 0 and n["ES2"]["fire_ha"] == 0
+    assert n["ES2"]["water"] == 0.4  # an outdated observation does not count
+
+
+def test_restrict_drops_codes_outside_the_panel():
+    signals = [_sig("notice", [{"code": "ES1"}, {"code": "ESZEC"}]),
+               _sig("fire", [{"code": "ESZEC"}], munis=["01001"]),
+               _sig("resolution", [{"code": "ESZEC"}])]
+    out = I.restrict(signals, {"ES1", "ES2"})
+    assert [(s["kind"], s["sites"]) for s in out] == [("notice", [{"code": "ES1"}]), ("fire", [])]
+    assert signals[0]["sites"] == [{"code": "ES1"}, {"code": "ESZEC"}]  # the input is left alone

@@ -6,6 +6,8 @@ import csv
 import io
 import json
 import time
+from datetime import date
+from email.utils import parsedate_to_datetime
 
 import requests
 from shapely import make_valid
@@ -18,16 +20,41 @@ _session.headers["User-Agent"] = "estado-iba (+https://github.com/Asensio94/esta
 
 
 def _get(url: str) -> bytes:
+    return _response(url).content
+
+
+def _response(url: str) -> requests.Response:
     for attempt in range(3):
         try:
-            r = _session.get(url, timeout=120)
+            r = _session.get(url, timeout=180)
             r.raise_for_status()
-            return r.content
+            return r
         except requests.RequestException:
             if attempt == 2:
                 raise
             time.sleep(5 * (attempt + 1))
     raise AssertionError("unreachable")
+
+
+def get_csv_dated(url: str) -> tuple[list[dict], str]:
+    """Rows of a CSV and the date the server says it was last modified (today if it does not say)."""
+    r = _response(url)
+    stamp = r.headers.get("Last-Modified")
+    day = parsedate_to_datetime(stamp).date().isoformat() if stamp else date.today().isoformat()
+    return list(csv.DictReader(io.StringIO(r.content.decode("utf-8")))), day
+
+
+def caudal() -> tuple[list[dict], dict[str, list[dict]], list[dict]]:
+    """Stations, daily flows per station and the legal minimum flows of caudal-ecologico."""
+    stations = get_csv(f"{config.FLOW_RAW}/stations.csv")
+    flows = {}
+    for st in stations:
+        try:
+            flows[st["station_id"]] = get_csv(f"{config.FLOW_RAW}/flows/{st['station_id']}.csv")
+        except requests.HTTPError:
+            flows[st["station_id"]] = []
+    req = [r for b in config.FLOW_BASINS for r in get_csv(f"{config.FLOW_RAW}/requirements/{b}.csv")]
+    return stations, flows, req
 
 
 def get_json(url: str) -> dict:

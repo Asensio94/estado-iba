@@ -2,7 +2,7 @@ name: Diario
 
 on:
   schedule:
-    - cron: "15 8 * * *"  # after observatorio, vigía and centinela have published
+    - cron: "15 8 * * *"  # after the daily siblings (grafo 07:40); cartera publishes at 10:30 and changes slowly, so yesterday's is fine
   workflow_dispatch:
 
 permissions:

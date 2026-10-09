@@ -27,6 +27,20 @@ WETLAND_SERIES_URL = RAW + "/vigilancia-humedales/master/data/series/{slug}.csv"
 WETLAND_SITE_URL = RAW + "/vigilancia-humedales/master/data/sites/{slug}.geojson"
 WETLANDS = ["donana", "mar-menor", "tablas-daimiel", "albufera-valencia", "fuente-piedra", "gallocanta"]
 
+# Municipalities with INE codes: IGN reference data, packaged as TopoJSON by es-atlas (~200 m).
+MUNICIPALITIES_URL = "https://cdn.jsdelivr.net/npm/es-atlas@0.6.0/es/municipalities.json"
+# Who is behind each project: grafo links BOE acts to companies and groups, cartera to listed companies.
+GRAFO_URL = f"{RAW}/grafo-promotores/main/data/grafo.json"
+CARTERA_URL = f"{PAGES}/cartera-cotizadas/datos/cartera.json"
+# State: river flow against the legal minimum (Júcar and Guadiana).
+FLOW_RAW = f"{RAW}/caudal-ecologico/main/data"
+FLOW_BASINS = ["jucar", "guadiana"]
+# Nocturnal migration forecast per city.
+MIGRATION_URL = f"{PAGES}/sub-nocte/data/phase3_forecast.csv"
+# Pressure: power-line risk per pylon and span, only in the regions already modelled.
+LINES_URL = PAGES + "/riesgo-tendidos-aves/{region}/ranking_elements.csv"
+LINE_REGIONS = ["cantabria", "estrecho"]
+
 FIRE_WINDOW_DAYS = 365
 LAND_STATES = {"confirmada", "provisional"}  # descartada, revertida and fusionada are not pressure
 WETLAND_QUALITY = {"ok"}  # cloudy, partial or anomalous scenes do not set the state
