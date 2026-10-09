@@ -1,4 +1,4 @@
-"""The public site: a page shell, the data it reads, and one RSS feed per site."""
+"""The public site: a page shell, the data it reads, and one RSS feed per site and per community."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from datetime import date, datetime
 from email.utils import format_datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
+
+from shapely.geometry import mapping, shape
 
 from . import config
 from .logo import LOGO_SVG, favicon_link
@@ -22,7 +24,7 @@ def _dump(path: Path, data) -> None:
 
 
 def build(sites: dict[str, dict], n: dict[str, dict], signals: list[dict], chains: dict, sources: dict,
-          munis: list[dict], now: datetime, today: date) -> None:
+          munis: list[dict], regs: list[dict], site_reg: dict[str, dict], now: datetime, today: date) -> None:
     docs = config.DOCS_DIR
     docs.mkdir(parents=True, exist_ok=True)
     (docs / ".nojekyll").touch()
@@ -32,21 +34,32 @@ def build(sites: dict[str, dict], n: dict[str, dict], signals: list[dict], chain
     for m in munis:
         for c in m["sites"]:
             site_munis.setdefault(c, []).append([m["ine"], m["name"]])
-    rows = sorted(({"code": c, "name": s["name"], "n": n[c],
+    def point(geom):
+        c = shape(geom).representative_point()
+        return [round(c.x, 4), round(c.y, 4)]
+
+    rows = sorted(({"code": c, "name": s["name"], "n": n[c], **site_reg[c], "point": point(s["geometry"]),
                     "munis": sorted(site_munis.get(c, []), key=lambda x: x[1])} for c, s in sites.items()),
                   key=lambda r: r["name"])
+    regions = [{"id": r["id"], "name": r["name"], "official": r["official"],
+                "bbox": [round(v, 2) for v in r["geom"].bounds],
+                "sites": sorted(c for c, x in site_reg.items() if r["id"] in x["regions"])} for r in regs]
     signals = sorted(signals, key=lambda s: s["date"], reverse=True)
     _dump(docs / "datos" / "hub.json", {
         "generated": now.strftime("%Y-%m-%dT%H:%MZ"), "today": today.isoformat(), "kind": config.SITE_KIND,
-        "sources": sources, "sites": rows, "signals": signals, "chains": chains})
+        "sources": sources, "regions": regions, "sites": rows, "signals": signals, "chains": chains})
     _dump(docs / "datos" / "municipios.json",
-          [[m["ine"], m["name"], m["province"], *m["point"], m["sites"]] for m in munis])
+          [[m["ine"], m["name"], m["province"], *m["point"], m["sites"], m["region"]] for m in munis])
+    # Outlines only, at ~1 km: they frame the map, the sites carry the detail.
+    _dump(docs / "comunidades.geojson", {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {"id": r["id"], "name": r["name"]},
+         "geometry": _rounded(mapping(r["geom"].simplify(0.01)))} for r in regs]})
     _dump(docs / "sitios.geojson", {"type": "FeatureCollection", "features": [
         {"type": "Feature", "properties": {"code": c, "name": s["name"]}, "geometry": s["geometry"]}
         for c, s in sites.items()]})
     for f in ("app.css", "app.js"):
         shutil.copyfile(HERE / "static" / f, docs / f)
-    _rss(docs / "rss", sites, signals)
+    _rss(docs / "rss", sites, regions, signals)
 
     figures = _figures(n, signals)
     html = PAGE
@@ -75,35 +88,55 @@ def _es(x: float) -> str:
     return f"{x:,}".replace(",", ".")
 
 
-def _rss(folder: Path, sites: dict[str, dict], signals: list[dict]) -> None:
-    """One feed per site, newest first. No build date in the channel, so an unchanged site gives
-    an unchanged file and the daily commit only touches what moved."""
+def _rounded(geom: dict, nd: int = 3) -> dict:
+    def r(c):
+        return [round(c[0], nd), round(c[1], nd)] if isinstance(c[0], float | int) else [r(x) for x in c]
+    return {"type": geom["type"], "coordinates": r(geom["coordinates"])}
+
+
+def _rss(folder: Path, sites: dict[str, dict], regions: list[dict], signals: list[dict]) -> None:
+    """One feed per site and one per community, newest first. No build date in the channel, so an
+    unchanged place gives an unchanged file and the daily commit only touches what moved."""
     folder.mkdir(parents=True, exist_ok=True)
     by_site: dict[str, list[dict]] = {}
+    by_region: dict[str, list[dict]] = {}
     for s in signals:
         for x in s["sites"]:
             by_site.setdefault(x["code"], []).append(s)
-    page = f"{config.PAGES}/estado-iba/"
+        for r in s.get("regions", []) if s["sites"] else []:  # a community feed follows its sites, like its page
+            by_region.setdefault(r, []).append(s)
     for code, site in sites.items():
-        items = []
-        for s in by_site.get(code, [])[:40]:
-            when = datetime.fromisoformat(s["date"][:10] + "T08:00:00+00:00")
-            extra = f" Plazo de alegaciones hasta el {s['deadline']}." if s["kind"] == "notice" and s["deadline"] else ""
-            items.append(f"<item><title>{escape(s['title'])}</title><link>{escape(s['url'])}</link>"
-                         f"<guid isPermaLink=\"false\">{escape(s['source'] + ':' + s['id'])}</guid>"
-                         f"<pubDate>{format_datetime(when)}</pubDate>"
-                         f"<description>{escape(site['name'] + '.' + extra)}</description></item>")
-        xml = ('<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0"><channel>'
-               f"<title>{escape(site['name'])} · Estado de las IBA</title><link>{page}#/e/{code}</link>"
-               f"<description>Proyectos, fuego, cambios de uso, agua y tendidos en {escape(site['name'])} ({code}).</description>"
-               f"<language>es</language>{''.join(items)}</channel></rss>\n")
-        (folder / f"{code}.xml").write_text(xml, encoding="utf-8")
+        _feed(folder / f"{code}.xml", site["name"], f"#/e/{code}",
+              f"Proyectos, fuego, cambios de uso, agua y tendidos en {site['name']} ({code}).",
+              by_site.get(code, []), lambda s, name=site["name"]: name)
+    for r in regions:
+        _feed(folder / f"ca-{r['id']}.xml", r["name"], f"#/ca/{r['id']}",
+              f"Proyectos, fuego, cambios de uso, agua y tendidos en los espacios y municipios de {r['official']}.",
+              by_region.get(r["id"], []),
+              lambda s: "; ".join(sites[x["code"]]["name"] for x in s["sites"][:3]) or "Por municipio")
+
+
+def _feed(path: Path, name: str, route: str, about: str, signals: list[dict], where) -> None:
+    items = []
+    for s in signals[:40]:
+        when = datetime.fromisoformat(s["date"][:10] + "T08:00:00+00:00")
+        extra = f" Plazo de alegaciones hasta el {s['deadline']}." if s["kind"] == "notice" and s["deadline"] else ""
+        items.append(f"<item><title>{escape(s['title'])}</title><link>{escape(s['url'])}</link>"
+                     f"<guid isPermaLink=\"false\">{escape(s['source'] + ':' + s['id'])}</guid>"
+                     f"<pubDate>{format_datetime(when)}</pubDate>"
+                     f"<description>{escape(where(s) + '.' + extra)}</description></item>")
+    xml = ('<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0"><channel>'
+           f"<title>{escape(name)} · Estado de las IBA</title><link>{config.PAGES}/estado-iba/{route}</link>"
+           f"<description>{escape(about)}</description>"
+           f"<language>es</language>{''.join(items)}</channel></rss>\n")
+    path.write_text(xml, encoding="utf-8")
 
 
 def _params() -> str:
     rows = [
         ("Espacios", f"{config.SITE_KIND} de la Red Natura 2000, simplificadas a unos 300 m (0,003°)"),
-        ("Municipios", "IGN (es-atlas), unos 200 m; un espacio cuenta en un municipio si comparten al menos 1 km² o el 10 % del municipio"),
+        ("Municipios", "IGN (es-atlas), unos 200 m; un espacio cuenta en un municipio si comparten al menos 1 km², el 10 % del municipio o el 25 % del espacio"),
+        ("Comunidad de un espacio", "las de sus municipios; si no toca ninguno (espacios marinos e islotes), la de la costa más cercana"),
         ("Fuego", f"incendios de los últimos {config.FIRE_WINDOW_DAYS} días"),
         ("Cambio de uso", "alertas confirmadas o provisionales; no cuentan las descartadas, revertidas ni fusionadas"),
         ("Humedal en una ZEPA", "al menos el 25 % de su superficie dentro de ella"),
@@ -140,7 +173,7 @@ __FAVICON__
     <h1><a href="#/">__LOGO__Estado de las <span>IBA</span></a></h1>
     <span class="rotulo">España · __N_SITES__ espacios para las aves · cada día</span>
   </div>
-  <p class="lede">Qué les está pasando a los espacios importantes para las aves: los proyectos que se someten a evaluación ambiental, el fuego, los cambios de uso del suelo, el agua de sus humedales y ríos y los tendidos peligrosos. Busca un espacio o tu municipio para ver todo lo que hay, quién está detrás y qué puedes hacer.</p>
+  <p class="lede">Qué les está pasando a los espacios importantes para las aves: los proyectos que se someten a evaluación ambiental, el fuego, los cambios de uso del suelo, el agua de sus humedales y ríos y los tendidos peligrosos. Busca un espacio, tu municipio o tu comunidad para ver todo lo que hay, quién está detrás y qué puedes hacer.</p>
   <p class="aviso-unidad">Por ahora la unidad son las <b>ZEPA</b> (zonas de especial protección para las aves de la Red Natura 2000), que son datos abiertos. Las IBA de SEO/BirdLife entrarán cuando su reutilización esté acordada.</p>
   <div class="figures">
     <div><b>__FIG_PRECISE__</b><span>ZEPA con proyectos dentro, según sus parcelas</span></div>
@@ -174,11 +207,11 @@ __FAVICON__
     <h3>Presión, estado y respuesta</h3>
     <p>El seguimiento de las IBA de BirdLife International mira las presiones, el estado y la respuesta. Este panel cubre sobre todo las presiones (proyectos, fuego, cambios de uso, tendidos). Del estado tiene el agua de seis humedales y el caudal de 55 puntos de río; el estado de las poblaciones de aves sale de censos que no son públicos a esta escala. La respuesta más directa a su alcance son las alegaciones: cada proyecto con plazo abierto lleva su fecha límite.</p>
     <h3>Lo que hay que saber antes de citarlo</h3>
-    <p>Una ficha sin novedades no es un espacio sin problemas: solo aparece lo que vigila algún proyecto hermano, y varios cubren solo una parte de España. Cada ficha dice qué se vigila allí y qué no. Un proyecto en evaluación no es un daño: es un procedimiento abierto que puede acabar denegado. Una relación entre sociedades es un indicio sacado de registros públicos, no una acusación.</p>
+    <p>Una ficha sin novedades no es un espacio sin problemas: solo aparece lo que vigila algún proyecto hermano, y varios cubren solo una parte de España. En el mapa de cada lugar, las capas que no cubren esa zona salen en gris con la nota «no cubre esta zona». Un proyecto en evaluación no es un daño: es un procedimiento abierto que puede acabar denegado. Una relación entre sociedades es un indicio sacado de registros públicos, no una acusación.</p>
     <h3>Datos de especies y personas</h3>
     <p>No se incorpora ni se publica ninguna ubicación de especies (colonias, nidos, dormideros ni territorios), ni datos de personas físicas.</p>
     <h3>Datos abiertos</h3>
-    <p><a href="datos/hub.json">hub.json</a> con todas las señales y fichas · <a href="datos/municipios.json">municipios.json</a> · <a href="sitios.geojson">sitios.geojson</a> · un feed RSS por espacio en <span class="data">rss/&lt;código&gt;.xml</span> · <a href="https://github.com/Asensio94/estado-iba">código</a>. Actualizado el <span class="data">__GENERATED__</span>.</p>
+    <p><a href="datos/hub.json">hub.json</a> con todas las señales y fichas · <a href="datos/municipios.json">municipios.json</a> · <a href="sitios.geojson">sitios.geojson</a> · <a href="comunidades.geojson">comunidades.geojson</a> · un feed RSS por espacio en <span class="data">rss/&lt;código&gt;.xml</span> y por comunidad en <span class="data">rss/ca-&lt;código INE&gt;.xml</span> · <a href="https://github.com/Asensio94/estado-iba">código</a>. Actualizado el <span class="data">__GENERATED__</span>.</p>
   </div>
 </section>
 

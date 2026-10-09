@@ -42,7 +42,10 @@ def build(today: date | None = None) -> None:
     failed: list[str] = []
     sites = I.load_sites(sources.get_json(config.SITES_URL), config.SITE_KIND)
     shapes = {c: make_valid(shape(s["geometry"])) for c, s in sites.items()}
-    munis = places.municipalities(sources.get_json(config.MUNICIPALITIES_URL), sites)
+    topo = sources.get_json(config.MUNICIPALITIES_URL)
+    regs = places.regions(topo)
+    munis = places.municipalities(topo, sites, regs)
+    site_reg = places.site_regions(munis, shapes, regs)
     idx = places.name_index(munis)
     resolve = partial(places.resolve, idx)
     locate = places.locator(munis, shapes)
@@ -71,7 +74,7 @@ def build(today: date | None = None) -> None:
             signals += sig
         else:
             coverage[name] = {"label": "sin datos hoy", "sites": [], "note": "La fuente no respondió en la última actualización."}
-    signals = I.restrict(signals, sites)
+    signals = I.with_regions(I.restrict(signals, sites), {m["ine"]: m["region"] for m in munis}, site_reg)
 
     ids = {s["id"] for s in signals if s["source"] == "observatorio-alegaciones"}
     chains = _try("grafo-promotores", lambda: A.chains(sources.get_json(config.GRAFO_URL),
@@ -81,7 +84,7 @@ def build(today: date | None = None) -> None:
     meta = {k: {"name": name, "url": f"{config.PAGES}/{k}/" if k != "caudal-ecologico" else "https://github.com/Asensio94/caudal-ecologico",
                 "watches": watches, "site_level": k in SITE_LEVEL, "coverage": coverage[k]}
             for k, (name, watches) in SOURCES.items()}
-    web.build(sites, n, signals, chains, meta, munis, datetime.now(timezone.utc), today)
+    web.build(sites, n, signals, chains, meta, munis, regs, site_reg, datetime.now(timezone.utc), today)
     by_kind: dict[str, int] = {}
     for s in signals:
         by_kind[s["kind"]] = by_kind.get(s["kind"], 0) + 1

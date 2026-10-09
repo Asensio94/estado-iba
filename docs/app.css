@@ -43,14 +43,45 @@ p.sec-sub{margin:0 0 12px;color:var(--muted);font-size:15px}
 .semana-tema{margin:0 0 12px}
 .semana-tema h3{font:600 15px/1.2 var(--font-title);text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px;color:var(--muted)}
 
-/* Map + table */
-.mapa-home{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:20px;align-items:start}
-#mapa{height:560px;border:1px solid var(--line);background:var(--paper)}
+/* The map of everything: tiles on the left, the layers as a legend with switches on the right */
+.mapa-host{margin:16px 0 4px}
+.mapa-todo{display:grid;grid-template-columns:minmax(0,1fr) 290px;border:1px solid var(--line);background:var(--paper)}
+.lienzo{height:440px}
+.mapa-host.grande .lienzo{height:580px}
+.capas{border-left:1px solid var(--line);padding:12px 14px;display:grid;gap:8px;align-content:start}
+.capas h3{margin:0;font:600 15px/1.2 var(--font-title);text-transform:uppercase;letter-spacing:.08em}
+.capas ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.capas .meta{margin:4px 0 0}
+.capa label,.capa.base{display:grid;grid-template-columns:18px 20px minmax(0,1fr) auto;gap:1px 8px;align-items:center;padding:4px 0;font-size:14.5px;line-height:1.25}
+.capa label{cursor:pointer}
+.capa input{margin:0;width:16px;height:16px;accent-color:var(--ink)}
+.capa .n{font:13px var(--font-data);color:var(--muted);font-variant-numeric:tabular-nums}
+.capa small{grid-column:3/-1;color:var(--muted);font-size:12.5px}
+.capa.no-cubre label{cursor:default}
+.capa.no-cubre svg{filter:grayscale(1);opacity:.4}
+.capa.no-cubre .nombre{color:var(--muted)}
+.marca{background:none;border:0}
+.marca svg{display:block;overflow:visible}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--paper);color:var(--ink)}
+.leaflet-popup-content{margin:10px 12px;font:14px/1.4 var(--font-text)}
+.pop ul{margin:6px 0 4px;padding-left:16px;display:grid;gap:5px}
+.pop .meta{display:block}
+.pop .tag{margin-bottom:3px}
+
+/* Communities */
+.comunidades{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.comunidades a{display:grid;gap:3px;height:100%;box-sizing:border-box;padding:10px 12px;background:var(--paper);border:1px solid var(--line);color:var(--ink);text-decoration:none}
+.comunidades a:hover{border-color:var(--accent)}
+.comunidades b{font:700 19px/1.05 var(--font-title);text-transform:uppercase;letter-spacing:.02em}
+
+/* Tables */
 .leyenda{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);padding:6px 0}
 .leyenda i{display:inline-block;width:14px;height:10px;margin-right:5px;vertical-align:-1px;border:1px solid var(--accent);background:var(--accent)}
 .controles{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:15px;margin-bottom:8px}
 .controles select{font:15px var(--font-text);background:var(--paper);color:var(--ink);border:1px solid var(--line);padding:4px 6px}
 .ranking{max-height:560px;overflow:auto;border:1px solid var(--line);background:var(--paper)}
+.ranking.tabla{max-height:none}
+.ranking td.meta{font-size:12.5px}
 .ranking table{width:100%;border-collapse:collapse;font-size:14.5px}
 .ranking th,.ranking td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:baseline}
 .ranking th{position:sticky;top:0;background:var(--paper);font:600 12.5px var(--font-title);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
@@ -68,12 +99,6 @@ p.sec-sub{margin:0 0 12px;color:var(--muted);font-size:15px}
 .municipios a:hover{border-color:var(--accent)}
 .lugar{display:grid;grid-template-columns:minmax(0,3fr) minmax(280px,2fr);gap:28px;margin:18px 0 32px}
 .lugar>aside{display:grid;gap:18px;align-content:start}
-#mapa-lugar{height:300px;border:1px solid var(--line)}
-.vigilancia{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:14.5px}
-.vigilancia li{display:grid;grid-template-columns:22px 1fr;gap:4px 6px}
-.vigilancia .si{color:var(--accent);font-weight:700}
-.vigilancia .no{color:var(--muted)}
-.vigilancia small{grid-column:2;color:var(--muted);font-size:13px}
 .panel{background:var(--paper);border:1px solid var(--line);padding:14px}
 .panel h3{margin:0 0 8px;font:600 16px/1.2 var(--font-title);text-transform:uppercase;letter-spacing:.08em}
 .actuar{border:1.5px solid var(--accent);background:var(--paper);padding:14px 16px;margin-bottom:22px}
@@ -99,9 +124,10 @@ p.sec-sub{margin:0 0 12px;color:var(--muted);font-size:15px}
 .method{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;border-top:1.5px solid var(--ink);margin-top:24px}
 
 @media (max-width:900px){
-  .dos,.mapa-home,.lugar,.method{grid-template-columns:1fr}
-  #mapa{height:52vh}
-  .ranking{max-height:none}
+  .dos,.lugar,.method,.mapa-todo{grid-template-columns:1fr}
+  .lienzo,.mapa-host.grande .lienzo{height:58vh}
+  .capas{border-left:0;border-top:1px solid var(--line)}
+  .ranking{max-height:70vh}
 }
 
 /* Away from home: the place is the page, the national lede and figures stay on the home page. */

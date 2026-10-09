@@ -1,6 +1,6 @@
 # Estado de las IBA
 
-Todo lo que los proyectos hermanos saben de un lugar, en una sola página. La web muestra, para cada espacio importante para las aves de España y para cada municipio:
+Todo lo que los proyectos hermanos saben de un lugar, en una sola página y en un solo mapa. La web muestra, para cada espacio importante para las aves de España, para cada municipio y para cada comunidad autónoma:
 
 - los proyectos en evaluación ambiental y quién está detrás;
 - el fuego y los cambios de uso del suelo;
@@ -16,20 +16,39 @@ Por ahora la unidad son las **ZEPA** de la Red Natura 2000, que son datos abiert
 
 ## Qué se puede hacer en la web
 
-- **Buscar un lugar.** Se escribe un espacio o cualquiera de los 8.185 municipios. La ficha de un espacio da:
+- **Verlo todo en un mapa.** La portada tiene un mapa de España con una capa por proyecto hermano, que se enciende y se apaga en la leyenda. Los espacios se colorean según el indicador que se elija.
+- **Buscar un lugar.** Se escribe un espacio, una comunidad o cualquiera de los 8.185 municipios. Cada lugar tiene su propio mapa con las mismas capas. La ficha de un espacio da además:
   - lo que ha pasado, mes a mes;
   - lo que admite alegaciones;
   - quién promueve cada proyecto;
-  - qué proyectos lo vigilan y cuáles no;
   - un canal RSS propio.
+- **Ver una comunidad.** Su mapa, sus plazos abiertos, lo nuevo de la semana y la tabla de sus espacios, con los marinos y los islotes aparte.
 - **Ver el día.**
   - Los plazos de alegaciones que antes vencen.
   - Lo nuevo de la semana, por tema.
   - La migración prevista para esta noche.
-  - Un mapa con la clasificación de los espacios según el indicador que se elija.
-- **Actuar.** Cada proyecto con plazo abierto enlaza al anuncio oficial, donde se indica cómo alegar. Cada espacio tiene su canal RSS: `rss/<código>.xml`.
+  - La clasificación de los espacios según el indicador que se elija.
+- **Actuar.** Cada proyecto con plazo abierto enlaza al anuncio oficial, donde se indica cómo alegar. Cada espacio y cada comunidad tienen su canal RSS: `rss/<código>.xml` y `rss/ca-<código INE>.xml`.
 
-Las direcciones son estables y se pueden compartir: `#/e/ES0000014` (Monfragüe), `#/m/10190` (Torrejón el Rubio), `#/plazos`.
+Las direcciones son estables y se pueden compartir: `#/ca/11` (Extremadura), `#/e/ES0000014` (Monfragüe), `#/m/10190` (Torrejón el Rubio), `#/plazos`.
+
+### El mapa
+
+Cada capa tiene su color y también su forma, para que no dependa solo del color:
+
+| Capa | Marca |
+|---|---|
+| Proyectos en evaluación | cuadrado con el número de proyectos; borde doble si alguno tiene plazo abierto |
+| Incendios | triángulo, mayor desde 100 ha |
+| Cambios de uso del suelo | rombo |
+| Agua de los humedales | círculo |
+| Caudal de los ríos | anillo, mayor si ha bajado del mínimo |
+| Tendidos de riesgo alto | cruz |
+| Migración esta noche | estrella, mayor cuanto más alta |
+
+Los anuncios no traen coordenadas. Por eso los proyectos se cuentan en cada municipio que nombran y, si no nombran ninguno, en el espacio. Los tendidos se marcan en un punto interior del espacio con el número de elementos de riesgo, nunca en cada apoyo.
+
+Fuera de la ficha de un municipio, el mapa muestra lo que toca alguna ZEPA, igual que las listas de debajo. En la ficha de un municipio aparece todo lo que lo nombra.
 
 ## Cómo funciona
 
@@ -49,7 +68,7 @@ El seguimiento de las IBA de BirdLife distingue presión, estado y respuesta. Ca
 
 1. `estado/sources.py` descarga lo que publica cada hermano.
 2. `estado/adapters.py` convierte lo publicado en **señales**: un formato común con fecha, título, enlace, espacios, municipios, precisión y plazo. Lo describe [CONTRATO.md](CONTRATO.md). Cuando un hermano publique su propio `signals.json`, su adaptador se reducirá a leerlo.
-3. `estado/places.py` lee los términos municipales del IGN (código INE) y los cruza con los espacios. También traduce a código INE los nombres de municipio que traen los hermanos y sitúa en espacio y municipio los puntos sueltos, como las estaciones de aforo.
+3. `estado/places.py` lee los términos municipales y las comunidades autónomas del IGN (código INE) y los cruza con los espacios. También traduce a código INE los nombres de municipio que traen los hermanos y sitúa en espacio y municipio los puntos sueltos, como las estaciones de aforo.
 4. `estado/indicators.py` calcula las cifras de cada espacio con funciones puras.
 5. `estado/web.py` escribe `docs/`. La página (`estado/static/app.js`) es estática y se mueve entre vistas sin recargar.
 
@@ -59,7 +78,14 @@ Este panel no tiene un índice compuesto. Sumar hectáreas quemadas y proyectos 
 
 ### Vigilado no es lo mismo que tranquilo
 
-Cada fuente declara qué espacios cubre. En la ficha, «no vigila este espacio» y «sin novedades» se muestran distinto, y en las cifras un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los tendidos cubren Cantabria y el Estrecho.
+Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los tendidos cubren Cantabria y el Estrecho. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris.
+
+### Comunidades autónomas
+
+- Un municipio pertenece a la comunidad de su provincia. Los 65 terrenos que comparten varios municipios (código INE 53xxx, como las Bardenas Reales) no tienen provincia: van a la comunidad en la que cae su interior.
+- Un espacio pertenece a las comunidades de sus municipios. 64 ZEPA están en más de una. Los 44 espacios que no tocan ningún municipio (marinos e islotes) van a la comunidad de la costa más cercana, y la web los muestra aparte.
+- Una señal va a las comunidades de sus espacios, recortadas por las de los municipios que nombra. Si un anuncio de Navarra toca una ZEPA que Navarra comparte con Aragón, cuenta solo en Navarra.
+- Ceuta y Melilla aparecen como ciudades autónomas. Gibraltar viene en la capa del IGN y se descarta.
 
 ### Precisión del cruce con proyectos
 
@@ -72,7 +98,7 @@ Para cada anuncio se buscan las sociedades que lo mencionan en el Grafo de promo
 ## Contraste
 
 - Las 658 ZEPA coinciden con las de `natura.geojson`: 387 ZEPA y 271 ZEC y ZEPA.
-- De los 8.185 municipios, 2.990 tienen alguna ZEPA. Un espacio solo cuenta para un municipio si lo cubre en al menos 1 km² o en el 10 % de su término. Así no cuentan las franjas que comparten los vecinos por la simplificación de los bordes.
+- De los 8.185 municipios, 3.010 tienen alguna ZEPA. Un espacio solo cuenta para un municipio si se solapan en al menos 1 km², en el 10 % del término o en el 25 % del espacio. Así no cuentan las franjas que comparten los vecinos por la simplificación de los bordes, pero sí cuenta una colonia pequeña dentro de un término grande.
 - Nombres de municipio:
   - En los anuncios del Observatorio, el 85 % de los nombres se traducen a código INE.
   - En los incendios, 128 de 137.
@@ -125,16 +151,16 @@ Solo `docs/`:
 
 - La página, con `app.js` y `app.css`.
 - `datos/hub.json`, con espacios, señales y cadenas.
-- `datos/municipios.json`, con el nombre, la provincia y los espacios de cada municipio.
-- `sitios.geojson`, con los límites simplificados.
-- Un canal RSS por espacio.
+- `datos/municipios.json`, con el nombre, la provincia, la comunidad y los espacios de cada municipio.
+- `sitios.geojson` y `comunidades.geojson`, con los límites simplificados.
+- Un canal RSS por espacio y otro por comunidad.
 
 No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dormideros ni territorios). De los tendidos solo se publica cuántos elementos de riesgo hay en cada espacio, nunca qué especies los usan. Tampoco se guarda ningún dato personal: las personas físicas del Grafo se descartan.
 
 ## Fuentes y licencias
 
 - Red Natura 2000: Agencia Europea de Medio Ambiente, vía el Vigía de incendios.
-- Términos municipales: Instituto Geográfico Nacional, vía [es-atlas](https://github.com/martgnz/es-atlas) (CC BY 4.0).
+- Términos municipales, provincias y comunidades: Instituto Geográfico Nacional, vía [es-atlas](https://github.com/martgnz/es-atlas) (CC BY 4.0).
 - Anuncios y resoluciones: Boletín Oficial del Estado, vía el Observatorio de alegaciones.
 - Focos y superficie quemada: NASA FIRMS y Copernicus Sentinel-2, vía el Vigía de incendios.
 - Cambio de uso: Copernicus Sentinel-2, vía Centinela Natura.

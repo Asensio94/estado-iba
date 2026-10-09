@@ -80,5 +80,7 @@ def wetlands(sites: dict[str, dict], min_overlap: float = 0.25) -> list[tuple[di
         inside = {code for code, g in shapes.items()
                   if g.intersects(geom) and g.intersection(geom).area >= min_overlap * geom.area}
         rows = get_csv(config.WETLAND_SERIES_URL.format(slug=slug))
-        out.append(({"slug": slug, "name": feature["properties"]["name"]}, rows, inside))
+        c = geom.representative_point()
+        out.append(({"slug": slug, "name": feature["properties"]["name"], "point": [round(c.x, 4), round(c.y, 4)]},
+                    rows, inside))
     return out

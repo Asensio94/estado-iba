@@ -49,14 +49,40 @@ def topo_features(topo: dict, name: str) -> list[dict]:
     return out
 
 
-def municipalities(topo: dict, sites: dict[str, dict], min_km2: float = 1.0, min_share: float = 0.1) -> list[dict]:
-    """Every municipality with its province and the sites it overlaps.
+# Short names for menus and breadcrumbs; the IGN layer carries the official ones.
+REGION_SHORT = {
+    "01": "Andalucía", "02": "Aragón", "03": "Asturias", "04": "Illes Balears", "05": "Canarias",
+    "06": "Cantabria", "07": "Castilla y León", "08": "Castilla-La Mancha", "09": "Cataluña",
+    "10": "Comunitat Valenciana", "11": "Extremadura", "12": "Galicia", "13": "Madrid", "14": "Murcia",
+    "15": "Navarra", "16": "País Vasco", "17": "La Rioja", "18": "Ceuta", "19": "Melilla",
+}
+
+
+def regions(topo: dict) -> list[dict]:
+    """Autonomous communities and cities (Gibraltar, «20», is left out)."""
+    return [{"id": f["id"], "name": REGION_SHORT.get(f["id"], f["properties"]["name"]),
+             "official": f["properties"]["name"], "geom": make_valid(shape(f["geometry"]))}
+            for f in topo_features(topo, "autonomous_regions") if f["id"] in REGION_SHORT]
+
+
+def municipalities(topo: dict, sites: dict[str, dict], regs: list[dict], min_km2: float = 1.0,
+                   min_share: float = 0.1, min_site_share: float = 0.25) -> list[dict]:
+    """Every municipality with its province, community and the sites it overlaps.
 
     Both layers are simplified (~200-300 m), so neighbours share slivers along their borders. A
-    site counts for a municipality only when the overlap is at least min_km2 or min_share of the
-    municipality, which keeps small municipalities fully inside a site.
+    site counts for a municipality when the overlap is at least min_km2, or min_share of the
+    municipality (small municipalities inside a big site), or min_site_share of the site (small
+    sites inside a big municipality, such as the lesser kestrel colonies in village churches).
     """
-    provinces = {f["id"]: f["properties"]["name"] for f in topo_features(topo, "provinces")}
+    provinces = topo_features(topo, "provinces")
+    names = {f["id"]: f["properties"]["name"] for f in provinces}
+    reg_tree = STRtree([r["geom"] for r in regs])
+
+    def region_at(point):
+        hit = reg_tree.query(point, predicate="intersects")
+        return regs[hit[0]]["id"] if len(hit) else ""
+
+    region_of = {f["id"]: region_at(make_valid(shape(f["geometry"])).representative_point()) for f in provinces}
     codes = list(sites)
     geoms = [make_valid(shape(sites[c]["geometry"])) for c in codes]
     tree = STRtree(geoms)
@@ -66,11 +92,37 @@ def municipalities(topo: dict, sites: dict[str, dict], min_km2: float = 1.0, min
         hits = []
         for i in tree.query(g, predicate="intersects"):
             area = g.intersection(geoms[i]).area
-            if area >= min_km2 * KM2_DEG2 or area >= min_share * g.area:
+            if area >= min_km2 * KM2_DEG2 or area >= min_share * g.area or area >= min_site_share * geoms[i].area:
                 hits.append(codes[i])
         c = g.representative_point()
-        out.append({"ine": f["id"], "name": f["properties"]["name"], "province": provinces.get(f["id"][:2], ""),
-                    "point": [round(c.x, 4), round(c.y, 4)], "sites": sorted(hits), "geom": g})
+        prov = f["id"][:2]
+        # Land held in common by several municipalities (INE «53», like the Bardenas Reales) has no
+        # province: its own point says which community it lies in.
+        out.append({"ine": f["id"], "name": f["properties"]["name"], "province": names.get(prov, ""),
+                    "region": region_of.get(prov) or region_at(c), "point": [round(c.x, 4), round(c.y, 4)],
+                    "sites": sorted(hits), "geom": g})
+    return out
+
+
+def site_regions(munis: list[dict], shapes: dict, regs: list[dict]) -> dict[str, dict]:
+    """The communities each site lies in, through its municipalities.
+
+    A site that overlaps no municipality lies at sea or on islets the IGN layer leaves out. It
+    goes to the community with the nearest coast and is flagged as marine: the State, not the
+    community, manages the marine sites.
+    """
+    by_site: dict[str, set[str]] = {}
+    for m in munis:
+        for c in m["sites"]:
+            if m["region"]:
+                by_site.setdefault(c, set()).add(m["region"])
+    out = {}
+    for code, g in shapes.items():
+        if code in by_site:
+            out[code] = {"regions": sorted(by_site[code]), "marine": False}
+        else:
+            near = min(regs, key=lambda r: r["geom"].distance(g))
+            out[code] = {"regions": [near["id"]], "marine": True}
     return out
 
 

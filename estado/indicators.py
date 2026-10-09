@@ -63,6 +63,23 @@ def restrict(signals: list[dict], codes) -> list[dict]:
     return out
 
 
+def with_regions(signals: list[dict], muni_region: dict[str, str], site_regions: dict[str, dict]) -> list[dict]:
+    """Each signal with the communities it belongs to.
+
+    The sites decide, since the panel is about them. A site shared by several communities is
+    narrowed down by the municipalities the signal names: a project in Asturias that touches
+    Picos de Europa belongs to Asturias, not to Cantabria or Castilla y León. A signal without
+    sites (a city's migration, a project that only touches a ZEC) goes by its municipalities.
+    """
+    out = []
+    for s in signals:
+        by_munis = {muni_region[m] for m in s["municipalities"] if muni_region.get(m)}
+        by_sites = {r for x in s["sites"] for r in site_regions.get(x["code"], {}).get("regions", [])}
+        regs = (by_sites & by_munis) or by_sites or by_munis
+        out.append({**s, "regions": sorted(regs)})
+    return out
+
+
 def _watched(coverage: dict | None, code: str) -> bool:
     return coverage is not None and (coverage["sites"] is None or code in coverage["sites"])
 

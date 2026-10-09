@@ -68,3 +68,14 @@ def test_restrict_drops_codes_outside_the_panel():
     out = I.restrict(signals, {"ES1", "ES2"})
     assert [(s["kind"], s["sites"]) for s in out] == [("notice", [{"code": "ES1"}]), ("fire", [])]
     assert signals[0]["sites"] == [{"code": "ES1"}, {"code": "ESZEC"}]  # the input is left alone
+
+
+def test_with_regions_follows_sites_narrowed_by_municipalities():
+    site_regions = {"ES1": {"regions": ["16", "17"], "marine": False}, "ES2": {"regions": ["17"], "marine": False}}
+    signals = [_sig("notice", [{"code": "ES1"}], munis=["01001"]),  # shared site, project on the «16» side
+               _sig("power_line", [{"code": "ES1"}]),  # no municipality: every community of the site
+               _sig("notice", [{"code": "ES2"}], munis=["01001", "08001"]),  # the «16» municipality is not where it touches
+               _sig("migration", [], munis=["46250"]),
+               _sig("fire", [{"code": "ESX"}])]
+    out = I.with_regions(signals, {"01001": "16", "08001": "09", "46250": "10"}, site_regions)
+    assert [s["regions"] for s in out] == [["16"], ["16", "17"], ["17"], ["10"], []]

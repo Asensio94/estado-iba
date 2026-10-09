@@ -138,7 +138,8 @@ def humedales(wetlands: list[tuple[dict, list[dict], set[str]]], state_of: Calla
                            f"{config.PAGES}/vigilancia-humedales/", "lamina",
                            sites=[{"code": c} for c in sorted(inside)],
                            value={"amount": st["water_ha"], "unit": "ha"}, status="vigente" if st["current"] else "antiguo",
-                           **{k: st[k] for k in ("ratio", "ref_ha", "ref_years", "dry_ref", "current")}, name=meta["name"]))
+                           **{k: st[k] for k in ("ratio", "ref_ha", "ref_years", "dry_ref", "current")}, name=meta["name"],
+                           point=meta.get("point")))
     cov = {"label": "Seis humedales", "sites": sorted(watched),
            "note": "Agua libre con Sentinel-2 desde 2017, frente a la mediana del mismo mes en años anteriores."}
     return cov, out
@@ -269,10 +270,12 @@ def tendidos(regions: dict[str, tuple[list[dict], str]], shapes: dict, high_shar
                 for i in tree.query(Point(float(r["lon"]), float(r["lat"])), predicate="intersects"):
                     count[codes[i]] = count.get(codes[i], 0) + 1
         for code, n in count.items():
+            c = shapes[code].representative_point()  # the count belongs to the site, not to any one pylon
             out.append(_signal("riesgo-tendidos-aves", f"{region}-{code}", "power_line", day,
                                f"{n} apoyos y vanos de riesgo alto para las aves dentro del espacio",
                                f"{config.PAGES}/riesgo-tendidos-aves/{region}/map.es.html", "punto",
-                               sites=[{"code": code}], value={"amount": n, "unit": "elementos"}, region=region))
+                               sites=[{"code": code}], value={"amount": n, "unit": "elementos"}, region=region,
+                               point=[round(c.x, 4), round(c.y, 4)]))
     cov = {"label": "Cantabria y el Estrecho", "sites": sorted(watched),
            "note": "Riesgo de electrocución y colisión de cada apoyo y vano de OpenStreetMap, modelado cada mes."}
     return cov, out

@@ -48,14 +48,15 @@ Hoy esa traducción la hace estado-iba (`estado/adapters.py`). Cuando un proyect
 | `deadline` | no | Fecha límite para actuar (alegaciones). Si no es nula, la señal aparece en «Plazos abiertos». |
 | `status` | no | Estado propio del proyecto (`confirmada`, `provisional`, `definitivo`…). |
 | `value` | no | La magnitud principal, con su unidad. |
-| `details` | no | Campos propios del proyecto que la ficha puede mostrar (promotor, potencia, clase de cambio…). |
+| `details` | no | Campos propios del proyecto que la ficha puede mostrar (promotor, potencia, clase de cambio…). Con `details.point` (`[lon, lat]`) la señal se dibuja en el mapa; sin él no se dibuja, salvo los anuncios, que se cuentan en sus municipios. |
 
-`coverage.sites` es `null` cuando el proyecto vigila toda España, o la lista de `SITECODE` que vigila. Con eso la ficha distingue «vigilado y sin novedades» de «no vigilado».
+`coverage.sites` es `null` cuando el proyecto vigila toda España, o la lista de `SITECODE` que vigila. Con eso el mapa distingue «vigilado, sin novedades» de «no cubre esta zona».
 
 ## Llaves comunes
 
 - **Espacio:** el `SITECODE` de Natura 2000 de la Agencia Europea de Medio Ambiente. Cuando entren las IBA, se añadirá su código de BirdLife con el mismo mecanismo.
 - **Municipio:** el código INE de 5 cifras. La capa de municipios sale del IGN (`es-atlas`), con la que estado-iba resuelve los nombres de municipio que traen los anuncios del BOE.
+- **Comunidad autónoma:** el código INE de 2 cifras. No hace falta enviarla: el hub la deduce de los espacios y los municipios y la añade a cada señal como `regions`.
 - **Anuncio:** el identificador del BOE (`BOE-B-AAAA-NNNNN`). Es la llave para seguir el hilo del proyecto al promotor y a su grupo empresarial.
 
 ## Reglas
