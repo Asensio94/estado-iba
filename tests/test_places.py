@@ -5,7 +5,8 @@ from estado import places as P
 
 # Two unit squares side by side (the first also held in common, without province), a province
 # and a community around them, Gibraltar (which the
-# IGN layer carries as a region) and an islet that quantization collapsed to three points. Arcs are delta-encoded, as in any quantized TopoJSON.
+# IGN layer carries as a region), an islet that quantization collapsed to three points and a
+# municipality simplified into a line that goes out and back. Arcs are delta-encoded, as in any quantized TopoJSON.
 TOPO = {
     "type": "Topology",
     "transform": {"scale": [1, 1], "translate": [0, 0]},
@@ -14,12 +15,14 @@ TOPO = {
         [[1, 0], [1, 0], [0, 1], [-1, 0], [0, -1]],
         [[0, 0], [2, 0], [0, 1], [-2, 0], [0, -1]],
         [[5, 5], [1, 0], [-1, 0]],
+        [[7, 7], [1, 0], [-1, 0], [0, 0]],
     ],
     "objects": {
         "municipalities": {"type": "GeometryCollection", "geometries": [
             {"type": "Polygon", "arcs": [[0]], "id": "01001", "properties": {"name": "Uno"}},
             {"type": "Polygon", "arcs": [[1]], "id": "01002", "properties": {"name": "Dos"}},
             {"type": "Polygon", "arcs": [[3]], "id": "01003", "properties": {"name": "Islote"}},
+            {"type": "Polygon", "arcs": [[4]], "id": "01004", "properties": {"name": "Línea"}},
             {"type": "Polygon", "arcs": [[0]], "id": "53001", "properties": {"name": "Facería de Uno"}},
         ]},
         "provinces": {"type": "GeometryCollection", "geometries": [
@@ -42,8 +45,21 @@ def _sites(shapes):
 
 def test_topo_features_decode_and_drop_degenerate_rings():
     feats = P.topo_features(TOPO, "municipalities")
-    assert [f["id"] for f in feats] == ["01001", "01002", "53001"]
+    assert [f["id"] for f in feats] == ["01001", "01002", "01004", "53001"]
     assert feats[1]["geometry"]["coordinates"][0][0] == [(1, 0), (2, 0), (2, 1), (1, 1), (1, 0)]
+
+
+def test_polygonal_keeps_areas_and_drops_collapsed_parts():
+    # An islet rounded into a single point and listed first, as off Lanzarote in ES0000100 (GEOS 3.14
+    # fails on that order), a square, a bow tie (self-crossing, so its signed area is zero) and a
+    # part simplified into a line.
+    g = P.polygonal({"type": "MultiPolygon", "coordinates": [
+        [[[7, 7], [7, 7], [7, 7], [7, 7]]],
+        [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+        [[[2, 0], [4, 2], [4, 0], [2, 2], [2, 0]]],
+        [[[5, 5], [6, 5], [5, 5], [5, 5]]],
+    ]})
+    assert g.geom_type == "MultiPolygon" and g.is_valid and g.area == 3
 
 
 def test_regions_use_short_names_and_skip_gibraltar():
@@ -57,6 +73,7 @@ def test_municipalities_ignore_border_slivers():
     assert munis["01002"]["sites"] == ["ES2"]  # ES1 spills 5 % into it, under 5 % of ES1 too
     assert munis["01001"]["province"] == "Araba/Álava" and munis["01001"]["region"] == "16"
     assert munis["53001"]["province"] == "" and munis["53001"]["region"] == "16"
+    assert munis["01004"]["point"] == [7.5, 7] and munis["01004"]["sites"] == []  # no area, still a place
 
 
 def test_municipalities_keep_small_sites_inside_big_municipalities():

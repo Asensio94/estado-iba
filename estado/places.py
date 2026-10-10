@@ -5,10 +5,22 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from shapely import STRtree, make_valid
+from shapely import STRtree, make_valid, unary_union
 from shapely.geometry import shape
 
 KM2_DEG2 = 1.06e-4  # one km² in square degrees around 40° N; good enough for a threshold
+
+
+def polygonal(geometry: dict):
+    """A valid areal shape from a GeoJSON geometry.
+
+    Simplified to ~300 m, some rings cross themselves and some small parts collapse into lines or
+    single points. Each part is repaired on its own and only areas are kept: GEOS 3.14 refuses to
+    repair a MultiPolygon with a part collapsed into a point, which older versions let through.
+    """
+    g = shape(geometry)
+    fixed = [make_valid(p) for p in getattr(g, "geoms", [g])]
+    return unary_union([q for p in fixed for q in getattr(p, "geoms", [p]) if q.geom_type in ("Polygon", "MultiPolygon")])
 
 
 def _decode_arcs(topo: dict) -> list[list[tuple[float, float]]]:
@@ -61,7 +73,7 @@ REGION_SHORT = {
 def regions(topo: dict) -> list[dict]:
     """Autonomous communities and cities (Gibraltar, «20», is left out)."""
     return [{"id": f["id"], "name": REGION_SHORT.get(f["id"], f["properties"]["name"]),
-             "official": f["properties"]["name"], "geom": make_valid(shape(f["geometry"]))}
+             "official": f["properties"]["name"], "geom": polygonal(f["geometry"])}
             for f in topo_features(topo, "autonomous_regions") if f["id"] in REGION_SHORT]
 
 
@@ -82,19 +94,20 @@ def municipalities(topo: dict, sites: dict[str, dict], regs: list[dict], min_km2
         hit = reg_tree.query(point, predicate="intersects")
         return regs[hit[0]]["id"] if len(hit) else ""
 
-    region_of = {f["id"]: region_at(make_valid(shape(f["geometry"])).representative_point()) for f in provinces}
+    region_of = {f["id"]: region_at(polygonal(f["geometry"]).representative_point()) for f in provinces}
     codes = list(sites)
-    geoms = [make_valid(shape(sites[c]["geometry"])) for c in codes]
+    geoms = [polygonal(sites[c]["geometry"]) for c in codes]
     tree = STRtree(geoms)
     out = []
     for f in topo_features(topo, "municipalities"):
-        g = make_valid(shape(f["geometry"]))
+        g = polygonal(f["geometry"])
         hits = []
         for i in tree.query(g, predicate="intersects"):
             area = g.intersection(geoms[i]).area
             if area >= min_km2 * KM2_DEG2 or area >= min_share * g.area or area >= min_site_share * geoms[i].area:
                 hits.append(codes[i])
-        c = g.representative_point()
+        # Simplified into a line, a municipality has no area left (53046, in Burgos) but still a place.
+        c = shape(f["geometry"]).centroid if g.is_empty else g.representative_point()
         prov = f["id"][:2]
         # Land held in common by several municipalities (INE «53», like the Bardenas Reales) has no
         # province: its own point says which community it lies in.

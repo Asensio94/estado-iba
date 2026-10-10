@@ -10,10 +10,8 @@ from datetime import date
 from email.utils import parsedate_to_datetime
 
 import requests
-from shapely import make_valid
-from shapely.geometry import shape
-
 from . import config
+from .places import polygonal
 
 _session = requests.Session()
 _session.headers["User-Agent"] = "estado-iba (+https://github.com/Asensio94/estado-iba)"
@@ -71,12 +69,11 @@ def wetlands(sites: dict[str, dict], min_overlap: float = 0.25) -> list[tuple[di
     A wetland belongs to a site when at least min_overlap of its area lies inside it: the
     wetland's own Natura code may be a ZEC rather than the ZEPA that covers the same water.
     """
-    # Simplifying to ~300 m leaves some self-intersecting rings; make_valid repairs them for the overlay.
-    shapes = {code: make_valid(shape(s["geometry"])) for code, s in sites.items()}
+    shapes = {code: polygonal(s["geometry"]) for code, s in sites.items()}
     out = []
     for slug in config.WETLANDS:
         feature = get_json(config.WETLAND_SITE_URL.format(slug=slug))
-        geom = make_valid(shape(feature["geometry"]))
+        geom = polygonal(feature["geometry"])
         inside = {code for code, g in shapes.items()
                   if g.intersects(geom) and g.intersection(geom).area >= min_overlap * geom.area}
         rows = get_csv(config.WETLAND_SERIES_URL.format(slug=slug))

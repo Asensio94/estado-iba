@@ -8,9 +8,6 @@ import traceback
 from datetime import date, datetime, timezone
 from functools import partial
 
-from shapely import make_valid
-from shapely.geometry import shape
-
 from . import adapters as A, config, indicators as I, places, sources, web
 
 # Name, link and what each source watches, as the site card says it.
@@ -41,7 +38,7 @@ def build(today: date | None = None) -> None:
     today = today or date.today()
     failed: list[str] = []
     sites = I.load_sites(sources.get_json(config.SITES_URL), config.SITE_KIND)
-    shapes = {c: make_valid(shape(s["geometry"])) for c, s in sites.items()}
+    shapes = {c: places.polygonal(s["geometry"]) for c, s in sites.items()}
     topo = sources.get_json(config.MUNICIPALITIES_URL)
     regs = places.regions(topo)
     munis = places.municipalities(topo, sites, regs)
