@@ -5,7 +5,7 @@ Todo lo que los proyectos hermanos saben de un lugar, en una sola página y en u
 - los proyectos en evaluación ambiental y quién está detrás;
 - el fuego y los cambios de uso del suelo;
 - el agua de sus humedales y el caudal de sus ríos;
-- los tendidos peligrosos y la migración nocturna;
+- los aerogeneradores y tendidos peligrosos, y la migración nocturna;
 - los plazos de alegaciones abiertos.
 
 No mide nada por sí mismo. Cada día reúne lo que ya publican los proyectos hermanos y enlaza cada dato a su registro.
@@ -43,10 +43,10 @@ Cada capa tiene su color y también su forma, para que no dependa solo del color
 | Cambios de uso del suelo | rombo |
 | Agua de los humedales | círculo |
 | Caudal de los ríos | anillo, mayor si ha bajado del mínimo |
-| Tendidos de riesgo alto | cruz |
+| Aerogeneradores y tendidos de riesgo alto | cruz |
 | Migración esta noche | estrella, mayor cuanto más alta |
 
-Los anuncios no traen coordenadas. Por eso los proyectos se cuentan en cada municipio que nombran y, si no nombran ninguno, en el espacio. Los tendidos se marcan en un punto interior del espacio con el número de elementos de riesgo, nunca en cada apoyo.
+Los anuncios no traen coordenadas. Por eso los proyectos se cuentan en cada municipio que nombran y, si no nombran ninguno, en el espacio. Los aerogeneradores y tendidos se marcan en un punto interior del espacio con el número de elementos de riesgo, nunca en cada aerogenerador o apoyo.
 
 Fuera de la ficha de un municipio, el mapa muestra lo que toca alguna ZEPA, igual que las listas de debajo. En la ficha de un municipio aparece todo lo que lo nombra.
 
@@ -59,7 +59,7 @@ El seguimiento de las IBA de BirdLife distingue presión, estado y respuesta. Ca
 | Presión | Proyectos en información pública y sus resoluciones | [Observatorio de alegaciones](https://github.com/Asensio94/observatorio-alegaciones) |
 | Presión | Incendios de los últimos 365 días, con hectáreas dentro del espacio | [Vigía de incendios](https://github.com/Asensio94/vigia-incendios) |
 | Presión | Cambios de uso del suelo confirmados o provisionales | [Centinela Natura](https://github.com/Asensio94/centinela-natura) |
-| Presión | Apoyos y vanos con riesgo alto para las aves | [Riesgo de tendidos para aves](https://github.com/Asensio94/riesgo-tendidos-aves) |
+| Presión | Aerogeneradores, apoyos y tramos de línea con riesgo alto para las aves | [Riesgo de tendidos para aves](https://github.com/Asensio94/riesgo-tendidos-aves) |
 | Estado | Agua libre frente a la mediana del mismo mes en años anteriores | [Vigilancia de humedales](https://github.com/Asensio94/vigilancia-humedales) |
 | Estado | Días por debajo del caudal ecológico mínimo en los últimos 30 días | [Caudal ecológico](https://github.com/Asensio94/caudal-ecologico) |
 | Estado | Migración nocturna prevista, por ciudad | [Sub Nocte](https://github.com/Asensio94/sub-nocte) |
@@ -78,7 +78,7 @@ Este panel no tiene un índice compuesto. Sumar hectáreas quemadas y proyectos 
 
 ### Vigilado no es lo mismo que tranquilo
 
-Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los tendidos cubren Cantabria y el Estrecho. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris.
+Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los aerogeneradores y tendidos cubren Cantabria y el Estrecho. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris.
 
 ### Comunidades autónomas
 
@@ -155,7 +155,7 @@ Solo `docs/`:
 - `sitios.geojson` y `comunidades.geojson`, con los límites simplificados.
 - Un canal RSS por espacio y otro por comunidad.
 
-No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dormideros ni territorios). De los tendidos solo se publica cuántos elementos de riesgo hay en cada espacio, nunca qué especies los usan. Tampoco se guarda ningún dato personal: las personas físicas del Grafo se descartan.
+No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dormideros ni territorios). De los aerogeneradores y tendidos solo se publica cuántos elementos de riesgo hay en cada espacio, nunca qué especies los usan. Tampoco se guarda ningún dato personal: las personas físicas del Grafo se descartan.
 
 ## Fuentes y licencias
 
@@ -166,7 +166,7 @@ No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dorm
 - Cambio de uso: Copernicus Sentinel-2, vía Centinela Natura.
 - Agua: Copernicus Sentinel-2, vía Vigilancia de humedales.
 - Caudal: SAIH del Júcar y del Guadiana y planes hidrológicos, vía Caudal ecológico.
-- Tendidos: © colaboradores de OpenStreetMap, vía Riesgo de tendidos para aves.
+- Aerogeneradores y tendidos: © colaboradores de OpenStreetMap, vía Riesgo de tendidos para aves.
 - Migración: radares meteorológicos europeos, vía Sub Nocte.
 - Sociedades y grupos: BOE y BORME, vía el Grafo de promotores y la Cartera de las cotizadas.
 - Mapa: © colaboradores de OpenStreetMap.

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import sys
+from collections import Counter
 from datetime import date, timedelta
 from typing import Callable
 
@@ -310,9 +311,23 @@ def subnocte(forecast: list[dict], resolve: Resolve, today: date) -> tuple[dict,
     return cov, out
 
 
+# How a title names each element type of the ranking, wind turbines first: they are the main point.
+ELEMENTS = (("turbine", "aerogenerador", "aerogeneradores"), ("pylon", "apoyo", "apoyos"),
+            ("line", "tramo de línea", "tramos de línea"))
+
+
+def elements(count: Counter) -> str:
+    """A count by element type in one Spanish phrase, wind turbines first: "3 aerogeneradores, 40 apoyos y 1 tramo
+    de línea". A type the ranking does not write today still counts, as "otros elementos"."""
+    known = [(count.get(t, 0), one, many) for t, one, many in ELEMENTS]
+    known.append((sum(count.values()) - sum(n for n, _, _ in known), "otro elemento", "otros elementos"))
+    parts = [f"{n} {one if n == 1 else many}" for n, one, many in known if n]
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " y " + parts[-1]
+
+
 def tendidos(regions: dict[str, tuple[list[dict], str]], shapes: dict, high_share: float = 0.1
              ) -> tuple[dict, list[dict]]:
-    """High-risk pylons and spans inside each site, per modelled region.
+    """High-risk wind turbines, pylons and line segments inside each site, per modelled region.
 
     High risk is the top high_share of risk_max within the region. Only counts are published: the
     per-element species lists stay in the source project.
@@ -327,18 +342,20 @@ def tendidos(regions: dict[str, tuple[list[dict], str]], shapes: dict, high_shar
         lons, lats = [float(r["lon"]) for r in rows], [float(r["lat"]) for r in rows]
         watched |= {codes[i] for i in tree.query(box(min(lons), min(lats), max(lons), max(lats)), predicate="intersects")}
         cut = sorted(float(r["risk_max"]) for r in rows)[int(len(rows) * (1 - high_share))]
-        count: dict[str, int] = {}
+        count: dict[str, Counter] = {}
         for r in rows:
             if float(r["risk_max"]) >= cut:
                 for i in tree.query(Point(float(r["lon"]), float(r["lat"])), predicate="intersects"):
-                    count[codes[i]] = count.get(codes[i], 0) + 1
-        for code, n in count.items():
+                    count.setdefault(codes[i], Counter())[r.get("type")] += 1
+        for code, kinds in count.items():
+            n = sum(kinds.values())
             c = shapes[code].representative_point()  # the count belongs to the site, not to any one pylon
             out.append(_signal("riesgo-tendidos-aves", f"{region}-{code}", "power_line", day,
-                               f"{n} apoyos y vanos de riesgo alto para las aves dentro del espacio",
+                               f"{elements(kinds)} de riesgo alto para las aves dentro del espacio",
                                f"{config.PAGES}/riesgo-tendidos-aves/{region}/map.es.html", "punto",
                                sites=[{"code": code}], value={"amount": n, "unit": "elementos"}, region=region,
                                point=[round(c.x, 4), round(c.y, 4)]))
     cov = {"label": "Cantabria y el Estrecho", "sites": sorted(watched),
-           "note": "Riesgo de electrocución y colisión de cada apoyo y vano de OpenStreetMap, modelado cada mes."}
+           "note": "Riesgo de colisión y electrocución de cada aerogenerador, apoyo y tramo de línea de "
+                   "OpenStreetMap, modelado cada mes."}
     return cov, out

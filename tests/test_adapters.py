@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import date
 
 import pytest
@@ -136,11 +137,20 @@ def test_subnocte_takes_first_spanish_night_and_names_levels():
 
 
 def test_tendidos_counts_top_risk_inside_each_site():
-    rows = [{"lon": "0.5", "lat": "0.5", "risk_max": "9"}, {"lon": "0.5", "lat": "0.5", "risk_max": "8"}]
-    rows += [{"lon": "3", "lat": "3", "risk_max": str(i)} for i in range(8)] + [{"lon": "3", "lat": "3", "risk_max": ""}]
+    rows = [{"type": "turbine", "lon": "0.5", "lat": "0.5", "risk_max": "19"},
+            {"type": "pylon", "lon": "0.5", "lat": "0.5", "risk_max": "18"}]
+    rows += [{"type": "pylon", "lon": "3", "lat": "3", "risk_max": str(i)} for i in range(18)]
+    rows += [{"type": "pylon", "lon": "3", "lat": "3", "risk_max": ""}]
     cov, out = A.tendidos({"cantabria": (rows, "2026-10-01")}, {"ES1": box(0, 0, 1, 1), "ES9": box(8, 8, 9, 9)})
-    assert [(s["sites"], s["value"]["amount"]) for s in out] == [([{"code": "ES1"}], 1)]
+    assert [(s["sites"], s["value"]["amount"]) for s in out] == [([{"code": "ES1"}], 2)]
+    assert out[0]["title"] == "1 aerogenerador y 1 apoyo de riesgo alto para las aves dentro del espacio"
     assert cov["sites"] == ["ES1"]  # ES9 lies outside the modelled region
+
+
+def test_titles_name_wind_turbines_first():
+    assert A.elements(Counter(pylon=40, line=2, turbine=3)) == "3 aerogeneradores, 40 apoyos y 2 tramos de línea"
+    assert A.elements(Counter(line=1)) == "1 tramo de línea"
+    assert A.elements(Counter(pylon=2, substation=1)) == "2 apoyos y 1 otro elemento"
 
 
 def _doc(signals, source="s", version=1):

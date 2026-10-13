@@ -19,7 +19,7 @@ SOURCES = {
     "centinela-natura": ("Centinela Natura", "cambios de uso del suelo"),
     "vigilancia-humedales": ("Vigilancia de humedales", "agua de sus humedales"),
     "caudal-ecologico": ("Caudal ecológico", "caudal de sus ríos frente al mínimo legal"),
-    "riesgo-tendidos-aves": ("Riesgo de tendidos para aves", "tendidos peligrosos"),
+    "riesgo-tendidos-aves": ("Riesgo de tendidos para aves", "aerogeneradores y tendidos peligrosos"),
     "sub-nocte": ("Sub Nocte", "migración nocturna"),
 }
 SITE_LEVEL = {k for k in SOURCES if k != "sub-nocte"}  # sub-nocte works per city, not per site
