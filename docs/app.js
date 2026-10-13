@@ -18,6 +18,7 @@ const KIND = {
   river_flow: {tag: "Río", theme: "Caudal de los ríos"},
   power_line: {tag: "Infraestructura", theme: "Aerogeneradores y tendidos eléctricos"},
   migration: {tag: "Migración", theme: "Migración nocturna"},
+  night_light: {tag: "Luz", theme: "Luz artificial de noche"},
 };
 const PRECISION = {
   parcelas: "cruce por parcelas", municipio: "cruce por municipio", perimetro: "perímetro Sentinel-2",
@@ -29,6 +30,7 @@ const MEANS = {
   fire: "Incendio visto por satélite. Si ya hay perímetro de Sentinel-2, las hectáreas son las quemadas dentro del espacio; si no, la extensión de los píxeles con focos, que exagera los incendios pequeños.",
   land_change: "Centinela compara la vegetación con imágenes de Sentinel-2. Una alerta no es una infracción: puede ser una obra autorizada, una corta o un cambio de cultivo. Se indica si se encontró expediente.",
   wetland_water: "Agua libre medida con Sentinel-2, comparada con la mediana del mismo mes en años anteriores.",
+  night_light: "Brillo medio de noche de los píxeles del espacio en las imágenes anuales del satélite VIIRS (NASA Black Marble), de media en los dos últimos años frente a los tres primeros, y comparado con lo que cambiaron los espacios que eran igual de oscuros: el producto sube y baja de un año a otro en todo el país a la vez. El sensor apenas ve la luz azul de los LED blancos: una subida es real y, si acaso, se queda corta; una bajada puede ser solo el cambio de farolas, por eso no se avisa de las bajadas.",
 };
 const PREC_NOTE = {
   municipio: "Este anuncio no trae parcelas: se ha cruzado el término municipal entero con el espacio, así que el proyecto puede quedar fuera.",
@@ -46,8 +48,15 @@ const LAYERS = [
   {id: "humedales", name: "Agua de los humedales", color: "#2a78d6", shape: "circle", source: "vigilancia-humedales", kinds: ["wetland_water"]},
   {id: "rios", name: "Caudal de los ríos", color: "#2a78d6", shape: "ring", source: "caudal-ecologico", kinds: ["river_flow"]},
   {id: "tendidos", name: "Aerogeneradores y tendidos de riesgo alto", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
+  {id: "luz", name: "Luz de noche en aumento", color: "#e3b505", shape: "sun", source: "black-marble", kinds: ["night_light"]},
   {id: "migracion", name: "Migración esta noche", color: OUTLINE, stroke: "#fff", shape: "star", source: "sub-nocte", kinds: ["migration"]},
 ];
+// The light layer is the one pale fill: it sits outside the lightness band of the others, so it
+// leans on the dark outline every mark has, and on its own shape, a sun.
+const SUN = Array.from({length: 16}, (_, i) => {
+  const a = i * 22.5 * Math.PI / 180, r = i % 2 ? 5.6 : 9;
+  return `${(10 + r * Math.cos(a)).toFixed(2)},${(10 + r * Math.sin(a)).toFixed(2)}`;
+}).join(" ");
 const STAR = Array.from({length: 10}, (_, i) => {
   const a = (-90 + i * 36) * Math.PI / 180, r = i % 2 ? 3.9 : 9.2;
   return `${(10 + r * Math.cos(a)).toFixed(2)},${(10.8 + r * Math.sin(a)).toFixed(2)}`;
@@ -60,6 +69,7 @@ const SHAPE = {
   ring: `<circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="3.2" fill="#fff"/>`,
   plus: `<path d="M7 2h6v5h5v6h-5v5H7v-5H2V7h5z"/>`,
   star: `<polygon points="${STAR}"/>`,
+  sun: `<polygon points="${SUN}"/>`,
 };
 
 let D, M, SHAPES, REGIONS_GEO, capa, MAPS = [];
@@ -88,7 +98,7 @@ function precTag(s) {
 function value(s) {
   if (!s.value || s.value.amount == null) return "";
   const a = s.value.amount;
-  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(s.value.unit)}`;
+  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(s.value.unit)}${s.kind === "night_light" ? " más de lo esperable" : ""}`;
 }
 function siteHa(s, code) {
   const x = (s.sites || []).find(z => z.code === code);
@@ -108,13 +118,14 @@ function home() {
     <p class="ejemplos">Por ejemplo: <a href="#/e/ES0000014">Monfragüe</a> · <a href="#/e/ES0000024">Doñana</a> · <a href="#/m/30016">Cartagena</a> · <a href="#/ca/06">Cantabria</a></p>
     <section class="bloque-home">
       <h2 class="sec">Todo en un mapa</h2>
-      <p class="sec-sub">Cada capa viene de un proyecto hermano y se activa o se apaga en la leyenda. Los espacios se colorean según lo que elijas.</p>
+      <p class="sec-sub">Cada capa viene de un proyecto hermano (la luz de noche, de la NASA) y se activa o se apaga en la leyenda. Los espacios se colorean según lo que elijas.</p>
       <div class="controles"><label>Colorear los espacios por <select id="indicador">
         <option value="precise">Proyectos dentro, por parcelas</option>
         <option value="open">Proyectos con plazo abierto</option>
         <option value="notices">Proyectos en su municipio</option>
         <option value="fire_ha">Hectáreas quemadas en 12 meses</option>
         <option value="land">Cambios de uso (solo Cantabria)</option>
+        <option value="light">Más luz artificial de noche</option>
       </select></label></div>
       <div id="mapa-host" class="mapa-host grande"></div>
       <div class="leyenda" id="leyenda"></div>
@@ -206,6 +217,7 @@ const IND = {
   notices: {label: "proyectos en su municipio", f: n => n.notices},
   fire_ha: {label: "hectáreas quemadas", f: n => n.fire_ha},
   land: {label: "alertas de cambio de uso", f: n => n.land || 0},
+  light: {label: "% más luz de noche que otros igual de oscuros", f: n => n.light || 0},
 };
 
 function ranking(key) {
@@ -584,7 +596,8 @@ function signalItem(s, code) {
   if (s.status && s.kind !== "notice") extra.push(esc(s.status));
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
-  if (PRECISION[s.precision] && s.kind !== "wetland_water") extra.push(PRECISION[s.precision]);
+  if (s.kind === "night_light") extra.push(`${num(d.radiance, 2)} nW/cm²/sr frente a ${num(d.baseline, 2)}; como los igual de oscuros, ${num(d.expected, 2)} · píxeles VIIRS de unos 500 m`);
+  else if (PRECISION[s.precision] && s.kind !== "wetland_water") extra.push(PRECISION[s.precision]);
   const fotos = d.before && d.after ? `<div class="fotos">
       <figure><img loading="lazy" src="${esc(d.before)}" alt="Antes"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
       <figure><img loading="lazy" src="${esc(d.after)}" alt="Después"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
@@ -622,6 +635,7 @@ function siteView(code) {
       </div>
       <aside>
         ${hilo(list)}
+        <div class="panel luz" id="luz-panel" hidden></div>
         <div class="panel rss"><h3>Recibe los avisos</h3>
           <p style="margin:0 0 6px">Suscríbete con tu lector de noticias para enterarte de cada novedad en este espacio:</p>
           <a href="rss/${esc(code)}.xml">rss/${esc(code)}.xml</a></div>
@@ -629,6 +643,98 @@ function siteView(code) {
     </div></div>`;
   window.scrollTo(0, 0);
   mapaTodo($("#mapa-host"), scopeSite(s), `Mapa de ${s.name}`);
+  luzPanel(code);
+}
+
+// The round number just above v and the decimals it needs: 0.69 -> 0.8, 3.2 -> 4, 0.21 -> 0.25.
+function redondo(v) {
+  const e = Math.floor(Math.log10(v)), step = 10 ** e;
+  const m = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(k => k * step >= v - 1e-12);
+  return [m * step, Math.max(0, -e + (m % 1 ? 1 : 0) - (m === 10 ? 1 : 0))];
+}
+
+/* Night light: the site's yearly series, read from luz.json only when a site is opened. */
+let LUZ;
+async function luzPanel(code) {
+  const host = $("#luz-panel"), cov = D.sources["black-marble"]?.coverage;
+  if (!host || !cov?.baseline) return;
+  try { LUZ ||= await fetch("datos/luz.json").then(r => r.json()); } catch { return; }
+  const x = LUZ.sites[code];
+  if (!x || !host.isConnected) return;
+  const years = LUZ.years, r = x.radiance, src = `<p class="meta fuente">NASA Black Marble (VIIRS), píxeles de unos 500 m ·
+    <a href="https://doi.org/${esc(LUZ.doi)}">producto</a> · <a href="datos/luz.json">luz.json</a></p>`;
+  host.hidden = false;
+  if (!cov.sites.includes(code)) {
+    host.innerHTML = `<h3>Luz artificial de noche</h3><p class="vacio">Con ${x.pixels} ${x.pixels === 1 ? "píxel" : "píxeles"} de
+      unos 500 m, el espacio es demasiado pequeño o le faltan años para leer una tendencia.</p>${src}`;
+    return;
+  }
+  const [b0, b1] = cov.baseline, mean = a => a.reduce((t, v) => t + v, 0) / a.length;
+  const ref = mean(r.filter((_, i) => years[i] >= b0 && years[i] <= b1)), now = r.slice(-cov.recent);
+  const cur = mean(now), pct = Math.round(100 * (cur / ref - 1)), span = `${years.at(-cov.recent)}-${years.at(-1)}`;
+  const delta = pct === 0 ? "lo mismo" : `un ${Math.abs(pct)} % ${pct > 0 ? "más" : "menos"}`;
+  const caption = i => r[i] == null ? `${years[i]}: sin dato` : `${years[i]}: ${num(r[i], 2)} nW/cm²/sr`;
+  const sig = (bySite.get(code) || []).find(s => s.kind === "night_light"), d = sig?.details;
+  const drift = d && Math.round(100 * (d.expected / d.baseline - 1));
+  const peers = sig
+    ? `En los espacios que eran igual de oscuros ${drift < 0 ? "bajó" : "subió"} un ${Math.abs(drift)} %: aquí hay un ${sig.value.amount} % más luz de la esperable.`
+    : "Cada espacio se compara con los que eran igual de oscuros, porque el producto de la NASA sube y baja de un año a otro en todo el país a la vez.";
+  host.innerHTML = `<h3>Luz artificial de noche</h3>
+    <p style="margin:0 0 6px">Brillo medio en ${span}: <b>${num(cur, 2)}</b> nW/cm²/sr, ${delta} que en ${b0}-${b1}.${pct < 0 ? " Una bajada puede ser solo el cambio a LED, que el satélite apenas ve." : ""} ${peers}</p>
+    <div class="luz-graf"></div>
+    <p class="meta luz-dato" aria-live="polite">${caption(years.length - 1)}</p>
+    <details><summary>Ver los datos</summary><table class="luz-tabla"><thead><tr><th>Año</th><th class="n">nW/cm²/sr</th></tr></thead>
+      <tbody>${years.map((y, i) => `<tr><td>${y}</td><td class="n">${num(r[i], 2)}</td></tr>`).join("")}</tbody></table></details>${src}`;
+  // Drawn at the box's own width (it changes once the map settles), so text and points keep their size.
+  const graf = $(".luz-graf", host), out = $(".luz-dato", host);
+  let drawn = 0;
+  const ro = new ResizeObserver(() => {
+    if (!graf.isConnected) return ro.disconnect();
+    const w = Math.round(graf.clientWidth);
+    if (w && w !== drawn) graf.innerHTML = luzChart(years, r, ref, `${b0}-${b1}`, cur > ref, drawn = w);
+  });
+  ro.observe(graf);
+  const show = i => {
+    const cruz = $(".cruz", graf);
+    for (const p of graf.querySelectorAll(".pt")) p.classList.toggle("on", p.dataset.i === String(i));
+    cruz.setAttribute("x1", cruz.dataset["x" + i]); cruz.setAttribute("x2", cruz.dataset["x" + i]);
+    cruz.style.visibility = "visible";
+    out.textContent = caption(i);
+  };
+  graf.addEventListener("pointerover", e => { if (e.target.dataset.i != null) show(+e.target.dataset.i); });
+  graf.addEventListener("pointerleave", () => {
+    for (const p of graf.querySelectorAll(".pt")) p.classList.remove("on");
+    const cruz = $(".cruz", graf);
+    if (cruz) cruz.style.visibility = "hidden";
+    out.textContent = caption(years.length - 1);
+  });
+}
+function luzChart(years, r, ref, base, above, W) {
+  const H = 120, L = 34, R = 8, T = 10, B = 20;
+  const [top, dec] = redondo(Math.max(ref, ...r.filter(v => v != null)) * 1.05 || 1);
+  const x = i => L + (W - L - R) * (years.length > 1 ? i / (years.length - 1) : .5);
+  const y = v => T + (H - T - B) * (1 - v / top);
+  let d = "", pen = false;
+  r.forEach((v, i) => {
+    if (v == null) { pen = false; return; }
+    d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`;
+    pen = true;
+  });
+  const step = (W - L - R) / Math.max(1, years.length - 1);
+  const xs = years.map((_, i) => `data-x${i}="${x(i).toFixed(1)}"`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Brillo medio de noche en el espacio, de ${years[0]} a ${years.at(-1)}">
+    <line class="eje-l" x1="${L}" x2="${W - R}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>
+    <line class="ref" x1="${L}" x2="${W - R}" y1="${y(ref).toFixed(1)}" y2="${y(ref).toFixed(1)}"/>
+    <text class="eje" x="${W - R}" y="${(y(ref) + (above ? 13 : -5)).toFixed(1)}" text-anchor="end">media ${esc(base)}</text>
+    <text class="eje" x="${L - 6}" y="${(y(top) + 4).toFixed(1)}" text-anchor="end">${num(top, dec)}</text>
+    <text class="eje" x="${L - 6}" y="${(y(0) + 4).toFixed(1)}" text-anchor="end">0</text>
+    <text class="eje" x="${x(0).toFixed(1)}" y="${H - 4}" text-anchor="start">${years[0]}</text>
+    <text class="eje" x="${x(years.length - 1).toFixed(1)}" y="${H - 4}" text-anchor="end">${years.at(-1)}</text>
+    <line class="cruz" ${xs} x1="0" x2="0" y1="${T}" y2="${y(0).toFixed(1)}" style="visibility:hidden"/>
+    <path class="linea" d="${d}"/>
+    ${r.map((v, i) => v == null ? "" : `<circle class="pt" data-i="${i}" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4"/>`).join("")}
+    ${years.map((_, i) => `<rect class="col" data-i="${i}" x="${(x(i) - step / 2).toFixed(1)}" y="${T}" width="${step.toFixed(1)}" height="${(y(0) - T).toFixed(1)}"/>`).join("")}
+  </svg>`;
 }
 
 /* ---------- Municipality ---------- */
@@ -668,6 +774,7 @@ function resumen(n) {
   if (n.open) parts.push(`${n.open} con plazo abierto`);
   if (n.fire_ha) parts.push(`${num(n.fire_ha, 1)} ha quemadas`);
   if (n.land) parts.push(`${n.land} ${n.land === 1 ? "cambio de uso" : "cambios de uso"}`);
+  if (n.light) parts.push(`${n.light} % más luz de noche que otros espacios igual de oscuros`);
   return parts.join(" · ");
 }
 
