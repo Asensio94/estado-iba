@@ -16,7 +16,7 @@ const KIND = {
   land_change: {tag: "Suelo", theme: "Cambios de uso del suelo"},
   wetland_water: {tag: "Agua", theme: "Agua de los humedales"},
   river_flow: {tag: "Río", theme: "Caudal de los ríos"},
-  power_line: {tag: "Tendido", theme: "Tendidos eléctricos"},
+  power_line: {tag: "Infraestructura", theme: "Aerogeneradores y tendidos eléctricos"},
   migration: {tag: "Migración", theme: "Migración nocturna"},
 };
 const PRECISION = {
@@ -45,7 +45,7 @@ const LAYERS = [
   {id: "suelo", name: "Cambios de uso del suelo", color: "#1baf7a", shape: "diamond", source: "centinela-natura", kinds: ["land_change"]},
   {id: "humedales", name: "Agua de los humedales", color: "#2a78d6", shape: "circle", source: "vigilancia-humedales", kinds: ["wetland_water"]},
   {id: "rios", name: "Caudal de los ríos", color: "#2a78d6", shape: "ring", source: "caudal-ecologico", kinds: ["river_flow"]},
-  {id: "tendidos", name: "Tendidos de riesgo alto", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
+  {id: "tendidos", name: "Aerogeneradores y tendidos de riesgo alto", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
   {id: "migracion", name: "Migración esta noche", color: OUTLINE, stroke: "#fff", shape: "star", source: "sub-nocte", kinds: ["migration"]},
 ];
 const STAR = Array.from({length: 10}, (_, i) => {
