@@ -78,7 +78,7 @@ def build(today: date | None = None) -> None:
                                                          sources.get_json(config.CARTERA_URL), ids), failed) or {}
 
     n = I.summary(sites, signals, coverage, today)
-    meta = {k: {"name": name, "url": f"{config.PAGES}/{k}/" if k != "caudal-ecologico" else "https://github.com/Asensio94/caudal-ecologico",
+    meta = {k: {"name": name, "url": f"{config.PAGES}/{k}/",
                 "watches": watches, "site_level": k in SITE_LEVEL, "coverage": coverage[k]}
             for k, (name, watches) in SOURCES.items()}
     web.build(sites, n, signals, chains, meta, munis, regs, site_reg, datetime.now(timezone.utc), today)

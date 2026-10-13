@@ -107,6 +107,7 @@ def test_caudal_counts_days_below_ordinary_minimum():
     s = out[0]
     assert s["details"]["days_below"] == 1 and s["details"]["days"] == 2 and s["details"]["minimum"] == 1.0
     assert s["date"] == "2026-09-21" and s["value"]["amount"] == 2.0 and s["sites"] == [{"code": "ES1"}]
+    assert s["url"] == "https://asensio94.github.io/caudal-ecologico/"
     assert cov["sites"] == ["ES1"]
 
 

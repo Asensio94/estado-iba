@@ -217,7 +217,7 @@ def caudal(stations: list[dict], flows: dict[str, list[dict]], requirements: lis
         sites, munis = locate(lon, lat)
         out.append(_signal("caudal-ecologico", st["station_id"], "river_flow", last["date"],
                            f"{st['name']}: {len(below)} de {len(rows)} días por debajo del caudal mínimo",
-                           "https://github.com/Asensio94/caudal-ecologico", "punto",
+                           f"{config.PAGES}/caudal-ecologico/", "punto",
                            sites=[{"code": c} for c in sites], municipalities=munis,
                            value={"amount": float(last["q_mean"]), "unit": "m³/s"},
                            minimum=float(r[f"m{int(last['date'][5:7]):02d}"]), days_below=len(below),

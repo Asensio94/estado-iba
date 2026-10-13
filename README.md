@@ -130,7 +130,6 @@ Para cada anuncio se buscan las sociedades que lo mencionan en el Grafo de promo
 
 - Cambiar las ZEPA por las IBA cuando SEO/BirdLife lo autorice. La capa original se guardará en privado y solo se publicará la geometría simplificada.
 - Que cada hermano publique su propio `signals.json` según [CONTRATO.md](CONTRATO.md).
-- Enlazar el caudal a su web cuando Caudal ecológico active GitHub Pages.
 - Añadir el brillo nocturno (VIIRS Black Marble) como presión.
 - Indicar qué IBA no tienen ninguna ZEPA (respuesta).
 
