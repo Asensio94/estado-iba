@@ -43,7 +43,8 @@ def _munis(resolve: Resolve, names: list[str] | None, provinces: list[str] | Non
     return sorted({c for n in names or [] if (c := resolve(n, provinces or []))})
 
 
-KINDS = {"notice", "resolution", "fire", "land_change", "wetland_water", "river_flow", "power_line", "migration"}
+KINDS = {"notice", "resolution", "fire", "land_change", "wetland_water", "river_flow", "power_line", "migration",
+         "night_light"}
 REQUIRED = ("id", "kind", "date", "title", "url", "precision")
 
 
@@ -358,4 +359,41 @@ def tendidos(regions: dict[str, tuple[list[dict], str]], shapes: dict, high_shar
     cov = {"label": "Cantabria y el Estrecho", "sites": sorted(watched),
            "note": "Riesgo de colisión y electrocución de cada aerogenerador, apoyo y tramo de línea de "
                    "OpenStreetMap, modelado cada mes."}
+    return cov, out
+
+
+def luz(doc: dict, shapes: dict, baseline: tuple[int, int], recent: int, min_rise: float, min_abs: float,
+        min_pixels: int) -> tuple[dict, list[dict]]:
+    """Sites where artificial light at night has grown since the first years of VIIRS (NASA Black Marble).
+
+    «Before» is the mean of the baseline years and «now» the mean of the last `recent` ones, so one
+    odd year makes no signal. Only rises count: VIIRS does not see the blue of white LEDs, so a town
+    that swaps sodium lamps for LEDs reads darker without being so, while a rise is, if anything, short.
+    A site of fewer than min_pixels pixels is not judged: one or two pixels are too noisy for a trend.
+    """
+    years = doc["years"]
+    before = [i for i, y in enumerate(years) if baseline[0] <= y <= baseline[1]]
+    now = [i for i in range(len(years))[-recent:] if i not in before]
+    out, watched = [], []
+    for code, s in doc["sites"].items():
+        r = s["radiance"]
+        if code not in shapes or s["pixels"] < min_pixels or not before or len(now) < recent \
+                or any(r[i] is None for i in before + now):
+            continue
+        watched.append(code)
+        ref, cur = sum(r[i] for i in before) / len(before), sum(r[i] for i in now) / len(now)
+        if ref <= 0 or cur - ref < min_abs or cur / ref - 1 < min_rise:
+            continue
+        pct = round(100 * (cur / ref - 1))
+        c = shapes[code].representative_point()
+        out.append(_signal("black-marble", code, "night_light", f"{years[-1]}-12-31",
+                           f"La luz artificial de noche ha subido un {pct} % desde {baseline[0]}-{baseline[1]} "
+                           "dentro del espacio", f"https://doi.org/{doc['doi']}", "pixeles",
+                           sites=[{"code": code}], value={"amount": pct, "unit": "%"},
+                           radiance=round(cur, 2), baseline=round(ref, 2), pixels=s["pixels"],
+                           years=[years[now[0]], years[now[-1]]], point=[round(c.x, 4), round(c.y, 4)]))
+    span = f"{years[0]}-{years[-1]}" if years else "sin años todavía"
+    cov = {"label": "Toda España", "sites": sorted(watched),
+           "note": f"Brillo medio de noche de los píxeles VIIRS de cada espacio, un dato por año ({span}). Solo se "
+                   "avisa de las subidas: el sensor no ve bien la luz azul de los LED blancos."}
     return cov, out

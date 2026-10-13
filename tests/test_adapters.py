@@ -191,3 +191,26 @@ def test_natural_persons_are_never_named_as_promoters():
     doc = _doc([{"id": "A", "kind": "notice", "date": "2026-10-01", "title": "t", "url": "u",
                  "precision": "municipio", "details": {"promoter": "Dña. Ana López"}}])
     assert A.published(doc, "s", resolve, lambda lon, lat: ([], []))[1][0]["details"]["promoter"] is None
+
+
+def _light(**sites):
+    return {"doi": "10.5067/VIIRS/VNP46A4.002", "years": [2012, 2013, 2014, 2015, 2024, 2025],
+            "sites": {c: {"pixels": px, "radiance": r} for c, (px, r) in sites.items()}}
+
+
+def test_night_light_signals_rises_only_over_both_thresholds():
+    shapes = {c: box(0, 0, 1, 1) for c in ("ES1", "ES2", "ES3", "ES4", "ES5", "ES6")}
+    doc = _light(ES1=(50, [1.0, 1.1, 0.9, 1.2, 1.5, 1.7]),  # +60 %
+                 ES2=(50, [0.2, 0.2, 0.2, 0.3, 0.35, 0.35]),  # +75 %, but only 0.15 more: noise floor
+                 ES3=(50, [2.0, 2.0, 2.0, 1.0, 1.0, 1.0]),  # a fall: maybe just LEDs
+                 ES4=(2, [1.0, 1.0, 1.0, 1.0, 3.0, 3.0]),  # two pixels: too few to judge
+                 ES5=(50, [1.0, None, 1.0, 1.0, 2.0, 2.0]),  # a year without data in the baseline
+                 ES6=(50, [1.0, 1.0, 1.0, 1.0, 1.2, 1.2]))  # +20 %: under the share
+    cov, out = A.luz(doc, shapes, (2012, 2014), 2, 0.25, 0.2, 4)
+    assert cov["sites"] == ["ES1", "ES2", "ES3", "ES6"] and "2012-2025" in cov["note"]
+    assert [s["id"] for s in out] == ["ES1"]
+    s = out[0]
+    assert s["title"] == "La luz artificial de noche ha subido un 60 % desde 2012-2014 dentro del espacio"
+    assert (s["date"], s["value"], s["precision"]) == ("2025-12-31", {"amount": 60, "unit": "%"}, "pixeles")
+    assert s["details"]["years"] == [2024, 2025] and s["details"]["baseline"] == 1.0 and s["details"]["radiance"] == 1.6
+    assert s["url"] == "https://doi.org/10.5067/VIIRS/VNP46A4.002"

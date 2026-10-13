@@ -10,7 +10,7 @@ from datetime import date, datetime, timezone
 from functools import partial
 from pathlib import Path
 
-from . import adapters as A, config, indicators as I, places, sources, web
+from . import adapters as A, config, indicators as I, luz, places, sources, web
 
 # Name, link and what each source watches, as the site card says it.
 SOURCES = {
@@ -21,8 +21,11 @@ SOURCES = {
     "caudal-ecologico": ("Caudal ecológico", "caudal de sus ríos frente al mínimo legal"),
     "riesgo-tendidos-aves": ("Riesgo de tendidos para aves", "aerogeneradores y tendidos peligrosos"),
     "sub-nocte": ("Sub Nocte", "migración nocturna"),
+    "black-marble": ("NASA Black Marble", "luz artificial de noche"),
 }
 SITE_LEVEL = {k for k in SOURCES if k != "sub-nocte"}  # sub-nocte works per city, not per site
+# Read here from open data rather than from a sibling: no signals.json to look for, and their own link.
+OWN = {"black-marble": config.LIGHT_PAGE}
 
 
 def _try(name: str, fn, failed: list[str]):
@@ -66,12 +69,15 @@ def _adapters(p: dict, today: date) -> dict:
         "riesgo-tendidos-aves": lambda: A.tendidos(
             {r: sources.get_csv_dated(config.LINES_URL.format(region=r)) for r in config.LINE_REGIONS}, shapes),
         "sub-nocte": lambda: A.subnocte(sources.get_csv(config.MIGRATION_URL), resolve, today),
+        "black-marble": lambda: A.luz(
+            json.loads(config.LIGHT_FILE.read_text(encoding="utf-8")), shapes, config.LIGHT_BASELINE,
+            config.LIGHT_RECENT, config.LIGHT_MIN_RISE, config.LIGHT_MIN_ABS, config.LIGHT_MIN_PIXELS),
     }
 
 
 def _read(name: str, adapter, p: dict, origin: dict[str, str]):
     """The sibling's own signals.json when it publishes a valid one; its adapter otherwise."""
-    doc = sources.published(name)
+    doc = None if name in OWN else sources.published(name)
     if doc is not None:
         try:
             got = A.published(doc, name, p["resolve"], p["locate"])
@@ -107,7 +113,7 @@ def build(today: date | None = None) -> None:
                                                          sources.get_json(config.CARTERA_URL), ids), failed) or {}
 
     n = I.summary(sites, signals, coverage, today)
-    meta = {k: {"name": name, "url": f"{config.PAGES}/{k}/",
+    meta = {k: {"name": name, "url": OWN.get(k, f"{config.PAGES}/{k}/"),
                 "watches": watches, "site_level": k in SITE_LEVEL, "coverage": coverage[k]}
             for k, (name, watches) in SOURCES.items()}
     web.build(sites, n, signals, chains, meta, munis, regs, site_reg, datetime.now(timezone.utc), today)
@@ -172,15 +178,26 @@ def check(name: str, where: str, today: date | None = None) -> bool:
     return same
 
 
+def light(today: date | None = None) -> None:
+    """Bring the night-light series of every site up to date (downloads from NASA; see luz.py)."""
+    sites = I.load_sites(sources.get_json(config.SITES_URL), config.SITE_KIND)
+    shapes = {c: places.polygonal(s["geometry"]) for c, s in sites.items()}
+    doc = luz.update(shapes, config.LIGHT_FILE, today or date.today())
+    print(f"{len(doc['sites'])} espacios · años {doc['years'][0] if doc['years'] else '—'}-"
+          f"{doc['years'][-1] if doc['years'] else '—'} · actualizado {doc['updated']}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="estado")
-    ap.add_argument("command", choices=["build", "check"])
+    ap.add_argument("command", choices=["build", "check", "luz"])
     ap.add_argument("source", nargs="?", help="check: the sibling, as in SOURCES")
     ap.add_argument("signals", nargs="?", help="check: its signals.json, a path or a URL")
     ap.add_argument("--today", type=date.fromisoformat, default=None)
     args = ap.parse_args()
     if args.command == "build":
         build(args.today)
+    elif args.command == "luz":
+        light(args.today)
     elif not (args.source in SOURCES and args.signals):
         ap.error("check needs a source and its signals.json")
     else:
