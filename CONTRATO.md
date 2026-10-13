@@ -38,7 +38,7 @@ Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `ht
 | Campo | Obligatorio | Qué es |
 |---|---|---|
 | `id` | sí | Identificador estable dentro del proyecto. El hub lo combina con `source`. |
-| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`. |
+| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`, `night_light`. |
 | `date` | sí | Fecha del hecho (`AAAA-MM-DD`): publicación, detección o medida. |
 | `title` | sí | Una línea legible, en español. |
 | `url` | sí | Enlace directo al registro: la web del proyecto con su ancla o la fuente oficial. |

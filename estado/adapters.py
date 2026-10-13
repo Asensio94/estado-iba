@@ -393,7 +393,7 @@ def luz(doc: dict, shapes: dict, baseline: tuple[int, int], recent: int, min_ris
                            radiance=round(cur, 2), baseline=round(ref, 2), pixels=s["pixels"],
                            years=[years[now[0]], years[now[-1]]], point=[round(c.x, 4), round(c.y, 4)]))
     span = f"{years[0]}-{years[-1]}" if years else "sin años todavía"
-    cov = {"label": "Toda España", "sites": sorted(watched),
+    cov = {"label": "Toda España", "sites": sorted(watched), "baseline": list(baseline), "recent": recent,
            "note": f"Brillo medio de noche de los píxeles VIIRS de cada espacio, un dato por año ({span}). Solo se "
                    "avisa de las subidas: el sensor no ve bien la luz azul de los LED blancos."}
     return cov, out

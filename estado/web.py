@@ -107,11 +107,12 @@ def _rss(folder: Path, sites: dict[str, dict], regions: list[dict], signals: lis
             by_region.setdefault(r, []).append(s)
     for code, site in sites.items():
         _feed(folder / f"{code}.xml", site["name"], f"#/e/{code}",
-              f"Proyectos, fuego, cambios de uso, agua, aerogeneradores y tendidos en {site['name']} ({code}).",
+              f"Proyectos, fuego, cambios de uso, agua, aerogeneradores, tendidos y luz de noche en {site['name']} ({code}).",
               by_site.get(code, []), lambda s, name=site["name"]: name)
     for r in regions:
         _feed(folder / f"ca-{r['id']}.xml", r["name"], f"#/ca/{r['id']}",
-              f"Proyectos, fuego, cambios de uso, agua, aerogeneradores y tendidos en los espacios y municipios de {r['official']}.",
+              f"Proyectos, fuego, cambios de uso, agua, aerogeneradores, tendidos y luz de noche en los espacios y municipios "
+              f"de {r['official']}.",
               by_region.get(r["id"], []),
               lambda s: "; ".join(sites[x["code"]]["name"] for x in s["sites"][:3]) or "Por municipio")
 
@@ -147,6 +148,11 @@ def _params() -> str:
         ("Estación de aforo en una ZEPA", "a menos de unos 500 m del espacio"),
         ("Aerogenerador o tendido de riesgo alto",
          "el 10 % de aerogeneradores, apoyos y tramos de línea con más riesgo de cada región modelada"),
+        ("Luz de noche en aumento",
+         f"brillo medio de los {config.LIGHT_RECENT} últimos años al menos un {config.LIGHT_MIN_RISE * 100:.0f} % y "
+         f"{str(config.LIGHT_MIN_ABS).replace('.', ',')} nW/cm²/sr por encima del de "
+         f"{config.LIGHT_BASELINE[0]}-{config.LIGHT_BASELINE[1]}; solo espacios de {config.LIGHT_MIN_PIXELS} píxeles "
+         "VIIRS o más (unos 500 m cada uno)"),
     ]
     body = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in rows)
     return f'<table class="params"><tbody>{body}</tbody></table>'
@@ -159,7 +165,7 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 __FAVICON__
 <title>Estado de las IBA</title>
-<meta name="description" content="Qué les está pasando a los espacios importantes para las aves de España: proyectos, fuego, cambios de uso, agua, ríos, aerogeneradores y tendidos, con cada dato enlazado a su fuente.">
+<meta name="description" content="Qué les está pasando a los espacios importantes para las aves de España: proyectos, fuego, cambios de uso, agua, ríos, aerogeneradores, tendidos y luz de noche, con cada dato enlazado a su fuente.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -174,7 +180,7 @@ __FAVICON__
     <h1><a href="#/">__LOGO__Estado de las <span>IBA</span></a></h1>
     <span class="rotulo">España · __N_SITES__ espacios para las aves · cada día</span>
   </div>
-  <p class="lede">Qué les está pasando a los espacios importantes para las aves: los proyectos que se someten a evaluación ambiental, el fuego, los cambios de uso del suelo, el agua de sus humedales y ríos, y los aerogeneradores y tendidos peligrosos. Busca un espacio, tu municipio o tu comunidad para ver todo lo que hay, quién está detrás y qué puedes hacer.</p>
+  <p class="lede">Qué les está pasando a los espacios importantes para las aves: los proyectos que se someten a evaluación ambiental, el fuego, los cambios de uso del suelo, el agua de sus humedales y ríos, los aerogeneradores y tendidos peligrosos y la luz artificial de noche. Busca un espacio, tu municipio o tu comunidad para ver todo lo que hay, quién está detrás y qué puedes hacer.</p>
   <p class="aviso-unidad">Por ahora la unidad son las <b>ZEPA</b> (zonas de especial protección para las aves de la Red Natura 2000), que son datos abiertos. Las IBA de SEO/BirdLife entrarán cuando su reutilización esté acordada.</p>
   <div class="figures">
     <div><b>__FIG_PRECISE__</b><span>ZEPA con proyectos dentro, según sus parcelas</span></div>
@@ -194,10 +200,11 @@ __FAVICON__
   <div>
     <h2>Cómo se calcula</h2>
     <ol>
-      <li>Cada día se leen los datos que ya publican los proyectos hermanos y se traducen a <b>señales</b>: hechos con fecha, lugar y enlace a su registro. Este panel no vuelve a medir nada. El formato está en <a href="https://github.com/Asensio94/estado-iba/blob/main/CONTRATO.md">CONTRATO.md</a>.</li>
+      <li>Cada día se leen los datos que ya publican los proyectos hermanos y se traducen a <b>señales</b>: hechos con fecha, lugar y enlace a su registro. Este panel no vuelve a medir nada, salvo la luz de noche. El formato está en <a href="https://github.com/Asensio94/estado-iba/blob/main/CONTRATO.md">CONTRATO.md</a>.</li>
       <li><b>Proyectos.</b> El Observatorio de alegaciones lee el BOE cada mañana. Si el anuncio trae las parcelas afectadas, el cruce con los espacios es con esas parcelas; si no, con el término municipal entero, que es solo una aproximación y se marca «por municipio».</li>
       <li><b>Quién está detrás.</b> El Grafo de promotores relaciona cada acto del BOE con las sociedades que aparecen en él y estas con su grupo, a partir del BORME. La Cartera de las cotizadas relaciona sociedades con empresas cotizadas por sus cuentas anuales. Cuando la cotizada se alcanza a través de otra sociedad del grupo, se indica.</li>
       <li><b>Fuego, suelo, agua, ríos, aerogeneradores y tendidos.</b> Vigía de incendios, Centinela Natura, Vigilancia de humedales, Caudal ecológico y Riesgo de tendidos para aves publican cada hecho con su lugar. Aquí se agrupan por espacio y municipio.</li>
+      <li><b>Luz de noche.</b> Una vez al mes se descargan de la NASA las imágenes anuales de Black Marble (satélite VIIRS, píxeles de unos 500 m) y se calcula el brillo medio de cada espacio año a año. Solo se avisa de las subidas: el sensor apenas ve la luz azul de los LED blancos, así que una bajada puede ser solo el cambio de farolas y una subida, si acaso, se queda corta. En los espacios marinos, parte de la luz es de barcos.</li>
       <li><b>Municipios.</b> Los nombres de municipio que traen los anuncios se resuelven al código INE con la capa del IGN; los homónimos se desempatan por provincia y, si no, se dejan sin resolver.</li>
       <li>No hay un índice que lo resuma todo: mezclar hectáreas quemadas con proyectos exigiría decidir cuánto pesa cada cosa, y esa decisión no es técnica.</li>
     </ol>
@@ -206,19 +213,19 @@ __FAVICON__
   </div>
   <div>
     <h3>Presión, estado y respuesta</h3>
-    <p>El seguimiento de las IBA de BirdLife International mira las presiones, el estado y la respuesta. Este panel cubre sobre todo las presiones (proyectos, fuego, cambios de uso, aerogeneradores y tendidos). Del estado tiene el agua de seis humedales y el caudal de 55 puntos de río; el estado de las poblaciones de aves sale de censos que no son públicos a esta escala. La respuesta más directa a su alcance son las alegaciones: cada proyecto con plazo abierto lleva su fecha límite.</p>
+    <p>El seguimiento de las IBA de BirdLife International mira las presiones, el estado y la respuesta. Este panel cubre sobre todo las presiones (proyectos, fuego, cambios de uso, aerogeneradores, tendidos y luz de noche). Del estado tiene el agua de seis humedales y el caudal de 55 puntos de río; el estado de las poblaciones de aves sale de censos que no son públicos a esta escala. La respuesta más directa a su alcance son las alegaciones: cada proyecto con plazo abierto lleva su fecha límite.</p>
     <h3>Lo que hay que saber antes de citarlo</h3>
     <p>Una ficha sin novedades no es un espacio sin problemas: solo aparece lo que vigila algún proyecto hermano, y varios cubren solo una parte de España. En el mapa de cada lugar, las capas que no cubren esa zona salen en gris con la nota «no cubre esta zona». Un proyecto en evaluación no es un daño: es un procedimiento abierto que puede acabar denegado. Una relación entre sociedades es un indicio sacado de registros públicos, no una acusación.</p>
     <h3>Datos de especies y personas</h3>
     <p>No se incorpora ni se publica ninguna ubicación de especies (colonias, nidos, dormideros ni territorios), ni datos de personas físicas.</p>
     <h3>Datos abiertos</h3>
-    <p><a href="datos/hub.json">hub.json</a> con todas las señales y fichas · <a href="datos/municipios.json">municipios.json</a> · <a href="sitios.geojson">sitios.geojson</a> · <a href="comunidades.geojson">comunidades.geojson</a> · un feed RSS por espacio en <span class="data">rss/&lt;código&gt;.xml</span> y por comunidad en <span class="data">rss/ca-&lt;código INE&gt;.xml</span> · <a href="https://github.com/Asensio94/estado-iba">código</a>. Actualizado el <span class="data">__GENERATED__</span>.</p>
+    <p><a href="datos/hub.json">hub.json</a> con todas las señales y fichas · <a href="datos/municipios.json">municipios.json</a> · <a href="datos/luz.json">luz.json</a> con la luz de noche de cada espacio, año a año · <a href="sitios.geojson">sitios.geojson</a> · <a href="comunidades.geojson">comunidades.geojson</a> · un feed RSS por espacio en <span class="data">rss/&lt;código&gt;.xml</span> y por comunidad en <span class="data">rss/ca-&lt;código INE&gt;.xml</span> · <a href="https://github.com/Asensio94/estado-iba">código</a>. Actualizado el <span class="data">__GENERATED__</span>.</p>
   </div>
 </section>
 
 <footer class="site-footer">
   <p class="principle">Datos públicos, reglas a la vista y cada cifra enlazada a su fuente. Indicios, no veredictos.</p>
-  <p>Red Natura 2000: Agencia Europea de Medio Ambiente · Municipios: Instituto Geográfico Nacional (es-atlas) · Anuncios y resoluciones: Boletín Oficial del Estado · Sociedades: BORME y cuentas anuales · Focos y superficie quemada: NASA FIRMS y Copernicus Sentinel-2 · Cambio de uso y agua: Copernicus Sentinel-2 · Caudales: SAIH del Júcar y SIRA del Guadiana · Aerogeneradores y tendidos: OpenStreetMap · Migración: radares meteorológicos europeos · Mapa: © colaboradores de OpenStreetMap · Código con licencia MIT.</p>
+  <p>Red Natura 2000: Agencia Europea de Medio Ambiente · Municipios: Instituto Geográfico Nacional (es-atlas) · Anuncios y resoluciones: Boletín Oficial del Estado · Sociedades: BORME y cuentas anuales · Focos y superficie quemada: NASA FIRMS y Copernicus Sentinel-2 · Cambio de uso y agua: Copernicus Sentinel-2 · Caudales: SAIH del Júcar y SIRA del Guadiana · Aerogeneradores y tendidos: OpenStreetMap · Luz de noche: NASA Black Marble (VIIRS) · Migración: radares meteorológicos europeos · Mapa: © colaboradores de OpenStreetMap · Código con licencia MIT.</p>
   <nav aria-label="Proyectos hermanos"><ul class="siblings">
     <li><a href="https://asensio94.github.io/observatorio-alegaciones/">Observatorio de alegaciones</a></li>
     <li><a href="https://asensio94.github.io/vigia-incendios/">Vigía de incendios</a></li>

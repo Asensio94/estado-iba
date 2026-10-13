@@ -5,10 +5,10 @@ Todo lo que los proyectos hermanos saben de un lugar, en una sola página y en u
 - los proyectos en evaluación ambiental y quién está detrás;
 - el fuego y los cambios de uso del suelo;
 - el agua de sus humedales y el caudal de sus ríos;
-- los aerogeneradores y tendidos peligrosos, y la migración nocturna;
+- los aerogeneradores y tendidos peligrosos, la luz artificial de noche y la migración nocturna;
 - los plazos de alegaciones abiertos.
 
-No mide nada por sí mismo. Cada día reúne lo que ya publican los proyectos hermanos y enlaza cada dato a su registro.
+Casi nada lo mide por sí mismo: cada día reúne lo que ya publican los proyectos hermanos y enlaza cada dato a su registro. La excepción es la luz de noche, que calcula una vez al mes a partir de NASA Black Marble.
 
 **Web:** https://asensio94.github.io/estado-iba/
 
@@ -44,6 +44,7 @@ Cada capa tiene su color y también su forma, para que no dependa solo del color
 | Agua de los humedales | círculo |
 | Caudal de los ríos | anillo, mayor si ha bajado del mínimo |
 | Aerogeneradores y tendidos de riesgo alto | cruz |
+| Luz de noche en aumento | sol |
 | Migración esta noche | estrella, mayor cuanto más alta |
 
 Los anuncios no traen coordenadas. Por eso los proyectos se cuentan en cada municipio que nombran y, si no nombran ninguno, en el espacio. Los aerogeneradores y tendidos se marcan en un punto interior del espacio con el número de elementos de riesgo, nunca en cada aerogenerador o apoyo.
@@ -60,6 +61,7 @@ El seguimiento de las IBA de BirdLife distingue presión, estado y respuesta. Ca
 | Presión | Incendios de los últimos 365 días, con hectáreas dentro del espacio | [Vigía de incendios](https://github.com/Asensio94/vigia-incendios) |
 | Presión | Cambios de uso del suelo confirmados o provisionales | [Centinela Natura](https://github.com/Asensio94/centinela-natura) |
 | Presión | Aerogeneradores, apoyos y tramos de línea con riesgo alto para las aves | [Riesgo de tendidos para aves](https://github.com/Asensio94/riesgo-tendidos-aves) |
+| Presión | Subida de la luz artificial de noche frente a 2012-2014 | [NASA Black Marble](https://blackmarble.gsfc.nasa.gov/), calculada aquí cada mes |
 | Estado | Agua libre frente a la mediana del mismo mes en años anteriores | [Vigilancia de humedales](https://github.com/Asensio94/vigilancia-humedales) |
 | Estado | Días por debajo del caudal ecológico mínimo en los últimos 30 días | [Caudal ecológico](https://github.com/Asensio94/caudal-ecologico) |
 | Estado | Migración nocturna prevista, por ciudad | [Sub Nocte](https://github.com/Asensio94/sub-nocte) |
@@ -76,9 +78,18 @@ Cada fuente se lee por separado. Si un hermano falla un día, su parte aparece c
 
 Este panel no tiene un índice compuesto. Sumar hectáreas quemadas y proyectos exigiría decidir cuánto pesa cada cosa, y esa decisión no es técnica. Los espacios se ordenan por el indicador que se elija.
 
+### Luz de noche
+
+La luz artificial desorienta a las aves que migran de noche y a los pollos de pardela que salen al mar, y atrae y mata insectos. Es la única presión que este panel mide por sí mismo, porque ningún proyecto hermano la cubre.
+
+- **Dato.** NASA Black Marble, producto anual VNP46A4 (versión 2): la radiancia de noche del satélite VIIRS, corregida de luna, nubes y atmósfera, en una rejilla de 15″ (unos 460 × 350 m en la Península). Se usa la capa *near nadir* sin nieve, la menos deformada. Los píxeles rellenados con años anteriores no cuentan.
+- **Cálculo.** El brillo de un espacio es la media de los píxeles cuyo centro cae dentro. Un espacio sin ningún centro dentro toma el píxel de su punto interior. `python -m estado.cli luz` descarga solo los años que faltan (cada año de cada tesela de 10° es un HDF5 de unos 90 MB) y guarda la serie en `docs/datos/luz.json`.
+- **Señal.** Se compara la media de los dos últimos años con la de 2012-2014. Hay señal si sube al menos un 25 % y al menos 0,2 nW/cm²/sr. Cerca de la oscuridad, un cambio pequeño es un porcentaje enorme. Los espacios de menos de 4 píxeles no se juzgan.
+- **LED.** El sensor apenas ve la luz azul de los LED blancos. Cuando un pueblo cambia sus farolas de sodio por LED, el satélite lo ve más oscuro aunque no lo esté. Por eso solo se avisa de las subidas, que son reales y, si acaso, se quedan cortas.
+
 ### Vigilado no es lo mismo que tranquilo
 
-Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los aerogeneradores y tendidos cubren Cantabria y el Estrecho. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris.
+Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los aerogeneradores y tendidos cubren Cantabria y el Estrecho. La luz de noche cubre los espacios de 4 píxeles o más. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris.
 
 ### Comunidades autónomas
 
@@ -125,12 +136,12 @@ Para cada anuncio se buscan las sociedades que lo mencionan en el Grafo de promo
 - Con la geometría simplificada a unos 300 m, un espacio puede ganar o perder franjas finas. Eso afecta poco a los cruces, porque cada proyecto los hace ya con su geometría completa. Sí afecta a las estaciones de aforo y a los tendidos, que se sitúan aquí.
 - Un proyecto en evaluación no es un daño: es un procedimiento abierto, que puede acabar denegado.
 - La cadena de propiedad es tan buena como el Grafo y la Cartera: un promotor no identificado no significa que no lo haya.
+- La luz de noche llega con retraso: la NASA publica cada año en la primavera siguiente. Las bajadas no se avisan, porque pueden ser solo un cambio a LED. En los espacios marinos, parte de la luz es de barcos de pesca.
 
 ## Pendiente
 
 - Cambiar las ZEPA por las IBA cuando SEO/BirdLife lo autorice. La capa original se guardará en privado y solo se publicará la geometría simplificada.
 - Que cada hermano publique su propio `signals.json` según [CONTRATO.md](CONTRATO.md).
-- Añadir el brillo nocturno (VIIRS Black Marble) como presión.
 - Indicar qué IBA no tienen ninguna ZEPA (respuesta).
 
 ## Uso
@@ -140,10 +151,11 @@ pip install -r requirements.txt
 python -m pytest -q
 python -m estado.cli build            # --today AAAA-MM-DD para fijar la fecha
 python -m estado.cli check vigia-incendios signals.json   # un signals.json frente a su adaptador
+python -m estado.cli luz              # serie de luz de noche; pide EARTHDATA_USERNAME y EARTHDATA_PASSWORD
 python -m http.server -d docs
 ```
 
-El workflow `diario.yml` lo ejecuta cada día a las 08:15 UTC, después de que publiquen los proyectos hermanos, y hace commit de `docs/`. GitHub Pages sirve la rama `main`, carpeta `/docs`.
+El workflow `diario.yml` lo ejecuta cada día a las 08:15 UTC, después de que publiquen los proyectos hermanos, y hace commit de `docs/`. GitHub Pages sirve la rama `main`, carpeta `/docs`. El workflow `luz.yml` actualiza la luz de noche el día 2 de cada mes con la cuenta de [Earthdata Login](https://urs.earthdata.nasa.gov/) guardada en los secretos del repositorio, y rehace el panel si ha cambiado.
 
 ## Datos que se guardan
 
@@ -152,6 +164,7 @@ Solo `docs/`:
 - La página, con `app.js` y `app.css`.
 - `datos/hub.json`, con espacios, señales y cadenas.
 - `datos/municipios.json`, con el nombre, la provincia, la comunidad y los espacios de cada municipio.
+- `datos/luz.json`, con el brillo medio de noche de cada espacio año a año, su número de píxeles y los ficheros de la NASA de los que sale.
 - `sitios.geojson` y `comunidades.geojson`, con los límites simplificados.
 - Un canal RSS por espacio y otro por comunidad.
 
@@ -168,6 +181,7 @@ No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dorm
 - Caudal: SAIH del Júcar y del Guadiana y planes hidrológicos, vía Caudal ecológico.
 - Aerogeneradores y tendidos: © colaboradores de OpenStreetMap, vía Riesgo de tendidos para aves.
 - Migración: radares meteorológicos europeos, vía Sub Nocte.
+- Luz de noche: NASA Black Marble, VNP46A4 versión 2 ([doi:10.5067/VIIRS/VNP46A4.002](https://doi.org/10.5067/VIIRS/VNP46A4.002)), datos abiertos de la NASA.
 - Sociedades y grupos: BOE y BORME, vía el Grafo de promotores y la Cartera de las cotizadas.
 - Mapa: © colaboradores de OpenStreetMap.
 - Código con licencia MIT.
