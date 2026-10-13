@@ -63,6 +63,7 @@ El seguimiento de las IBA de BirdLife distingue presión, estado y respuesta. Ca
 | Estado | Agua libre frente a la mediana del mismo mes en años anteriores | [Vigilancia de humedales](https://github.com/Asensio94/vigilancia-humedales) |
 | Estado | Días por debajo del caudal ecológico mínimo en los últimos 30 días | [Caudal ecológico](https://github.com/Asensio94/caudal-ecologico) |
 | Estado | Migración nocturna prevista, por ciudad | [Sub Nocte](https://github.com/Asensio94/sub-nocte) |
+| Contexto | Edificios construidos después de 2016 en zona inundable, por municipio | [Zona inundable](https://github.com/Asensio94/zona-inundable) |
 | Respuesta | Plazo de alegaciones abierto, con su fecha límite | Observatorio de alegaciones |
 | Contexto | Sociedad promotora → grupo → empresa cotizada | [Grafo de promotores](https://github.com/Asensio94/grafo-promotores) y [Cartera de las cotizadas](https://github.com/Asensio94/cartera-cotizadas) |
 
@@ -78,7 +79,7 @@ Este panel no tiene un índice compuesto. Sumar hectáreas quemadas y proyectos 
 
 ### Vigilado no es lo mismo que tranquilo
 
-Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los tendidos cubren Cantabria y el Estrecho. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris.
+Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los tendidos cubren Cantabria y el Estrecho. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris. Los edificios en zona inundable se cuentan por municipio y solo salen en la ficha de cada municipio.
 
 ### Comunidades autónomas
 
@@ -168,6 +169,7 @@ No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dorm
 - Caudal: SAIH del Júcar y del Guadiana y planes hidrológicos, vía Caudal ecológico.
 - Tendidos: © colaboradores de OpenStreetMap, vía Riesgo de tendidos para aves.
 - Migración: radares meteorológicos europeos, vía Sub Nocte.
+- Zonas inundables: SNCZI (MITECO) y Catastro, vía Zona inundable.
 - Sociedades y grupos: BOE y BORME, vía el Grafo de promotores y la Cartera de las cotizadas.
 - Mapa: © colaboradores de OpenStreetMap.
 - Código con licencia MIT.

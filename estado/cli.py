@@ -21,8 +21,10 @@ SOURCES = {
     "caudal-ecologico": ("Caudal ecológico", "caudal de sus ríos frente al mínimo legal"),
     "riesgo-tendidos-aves": ("Riesgo de tendidos para aves", "tendidos peligrosos"),
     "sub-nocte": ("Sub Nocte", "migración nocturna"),
+    "zona-inundable": ("Zona inundable", "edificios construidos en zona inundable"),
 }
-SITE_LEVEL = {k for k in SOURCES if k != "sub-nocte"}  # sub-nocte works per city, not per site
+# sub-nocte works per city and zona-inundable per municipality, not per site
+SITE_LEVEL = {k for k in SOURCES if k not in ("sub-nocte", "zona-inundable")}
 
 
 def _try(name: str, fn, failed: list[str]):
@@ -49,7 +51,7 @@ def _places() -> dict:
 
 
 def _adapters(p: dict, today: date) -> dict:
-    """How to read each sibling that does not publish its own signals.json yet."""
+    """How to read each sibling that does not publish its own signals.json yet (or never had another way)."""
     sites, shapes, resolve, locate = p["sites"], p["shapes"], p["resolve"], p["locate"]
     return {
         "observatorio-alegaciones": lambda: A.observatorio(sources.get_json(config.PROJECTS_URL), resolve),
@@ -66,6 +68,7 @@ def _adapters(p: dict, today: date) -> dict:
         "riesgo-tendidos-aves": lambda: A.tendidos(
             {r: sources.get_csv_dated(config.LINES_URL.format(region=r)) for r in config.LINE_REGIONS}, shapes),
         "sub-nocte": lambda: A.subnocte(sources.get_csv(config.MIGRATION_URL), resolve, today),
+        "zona-inundable": lambda: A.unpublished("Toda España"),  # signals.json only
     }
 
 
