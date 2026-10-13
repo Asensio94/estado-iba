@@ -27,11 +27,20 @@ def _response(url: str) -> requests.Response:
             r = _session.get(url, timeout=180)
             r.raise_for_status()
             return r
-        except requests.RequestException:
-            if attempt == 2:
+        except requests.RequestException as e:
+            missing = isinstance(e, requests.HTTPError) and e.response is not None and e.response.status_code < 500
+            if missing or attempt == 2:  # a file that is not there will not appear by asking again
                 raise
             time.sleep(5 * (attempt + 1))
     raise AssertionError("unreachable")
+
+
+def published(source: str) -> dict | None:
+    """The sibling's own signals.json (CONTRATO.md), or None while it publishes none or it cannot be read."""
+    try:
+        return get_json(f"{config.PAGES}/{source}/signals.json")
+    except (requests.RequestException, ValueError):
+        return None
 
 
 def get_csv_dated(url: str) -> tuple[list[dict], str]:

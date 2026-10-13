@@ -2,7 +2,7 @@
 
 Estado de las IBA reúne lo que publican los proyectos hermanos. Para no depender del formato interno de cada uno, todo se traduce a **señales**: cada señal es un hecho con fecha, lugar y enlace a su registro original. Una señal puede ser un anuncio del BOE, un incendio, una alerta de cambio de uso, una medida de agua o caudal, o un tendido peligroso.
 
-Hoy esa traducción la hace estado-iba (`estado/adapters.py`). Cuando un proyecto publique su propio `signals.json` con este formato, su adaptador se reduce a leerlo.
+Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `https://asensio94.github.io/<proyecto>/signals.json`. Estado de las IBA lo busca en cada actualización. Mientras un proyecto no lo publique, o si el fichero no se puede leer, el hub traduce sus ficheros internos como hasta ahora (`estado/adapters.py`).
 
 ## `signals.json`
 
@@ -44,13 +44,30 @@ Hoy esa traducción la hace estado-iba (`estado/adapters.py`). Cuando un proyect
 | `url` | sí | Enlace directo al registro: la web del proyecto con su ancla o la fuente oficial. |
 | `sites` | no | Espacios Natura 2000 que toca, por `SITECODE`, con hectáreas si se conocen. |
 | `municipalities` | no | Códigos INE de 5 cifras. |
-| `precision` | sí | Cómo se ha cruzado con el lugar: `parcelas`, `municipio`, `perimetro`, `focos`, `punto`, `cuenca`. |
+| `municipality_names` | no | Nombres de municipio, si el proyecto no tiene los códigos INE. El hub los resuelve con la capa del IGN. |
+| `provinces` | no | Provincias de esos municipios, para distinguir homónimos (Villanueva, Granada…). |
+| `precision` | sí | Cómo se ha cruzado con el lugar: `parcelas`, `municipio`, `perimetro`, `focos`, `punto`, `lamina`, `pixeles`, `radar`. Una señal `punto` sin espacios ni municipios los recibe del hub, a partir de `details.point`. |
 | `deadline` | no | Fecha límite para actuar (alegaciones). Si no es nula, la señal aparece en «Plazos abiertos». |
 | `status` | no | Estado propio del proyecto (`confirmada`, `provisional`, `definitivo`…). |
 | `value` | no | La magnitud principal, con su unidad. |
 | `details` | no | Campos propios del proyecto que la ficha puede mostrar (promotor, potencia, clase de cambio…). Con `details.point` (`[lon, lat]`) la señal se dibuja en el mapa; sin él no se dibuja, salvo los anuncios, que se cuentan en sus municipios. |
 
 `coverage.sites` es `null` cuando el proyecto vigila toda España, o la lista de `SITECODE` que vigila. Con eso el mapa distingue «vigilado, sin novedades» de «no cubre esta zona».
+
+## Qué entra
+
+- Lo vigente: los hechos que el proyecto da por buenos hoy. Una alerta descartada no es una señal.
+- El hub aplica sus propias ventanas de tiempo, sea quien sea quien envíe la señal: los incendios, 365 días.
+- El `id` es estable entre ejecuciones, para que los enlaces y los RSS no cambien.
+- Una señal sin un campo obligatorio, o de un tipo que no está en la lista, se descarta.
+
+Antes de publicar el fichero por primera vez, desde estado-iba:
+
+```bash
+python -m estado.cli check vigia-incendios ruta/a/signals.json
+```
+
+Compara el fichero con lo que el adaptador lee hoy de la web del proyecto y enumera las diferencias tal como las vería el panel.
 
 ## Llaves comunes
 

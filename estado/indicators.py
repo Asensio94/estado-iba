@@ -7,7 +7,7 @@ cross-checks carry their codes. There is no composite score: the page sorts by a
 from __future__ import annotations
 
 import statistics
-from datetime import date
+from datetime import date, timedelta
 
 
 def load_sites(natura: dict, kind: str) -> dict[str, dict]:
@@ -47,6 +47,12 @@ def wetland_state(rows: list[dict], today: date, quality: set[str], min_years: i
         "ratio": round(water / median, 2) if median and not dry else None, "dry_ref": dry, "ref_years": sorted(ref),
         "current": (today - d).days <= max_age,
     }
+
+
+def recent(signals: list[dict], today: date, windows: dict[str, int]) -> list[dict]:
+    """Drop what is older than the window of its kind; kinds without a window keep everything."""
+    since = {k: (today - timedelta(days=d)).isoformat() for k, d in windows.items()}
+    return [s for s in signals if s["kind"] not in since or s["date"] >= since[s["kind"]]]
 
 
 def restrict(signals: list[dict], codes) -> list[dict]:

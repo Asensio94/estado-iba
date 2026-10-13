@@ -1,5 +1,6 @@
 from datetime import date
 
+import pytest
 from shapely import box
 
 from estado import adapters as A
@@ -128,3 +129,32 @@ def test_tendidos_counts_top_risk_inside_each_site():
     cov, out = A.tendidos({"cantabria": (rows, "2026-10-01")}, {"ES1": box(0, 0, 1, 1), "ES9": box(8, 8, 9, 9)})
     assert [(s["sites"], s["value"]["amount"]) for s in out] == [([{"code": "ES1"}], 1)]
     assert cov["sites"] == ["ES1"]  # ES9 lies outside the modelled region
+
+
+def _doc(signals, source="s", version=1):
+    return {"source": source, "version": version, "generated": "2026-10-09T07:00Z",
+            "coverage": {"label": "Toda España", "sites": None, "note": "n"}, "signals": signals}
+
+
+def test_published_resolves_names_places_points_and_drops_incomplete():
+    doc = _doc([
+        {"id": 1, "kind": "fire", "date": "2026-10-01", "title": "t", "url": "u", "precision": "focos",
+         "sites": [{"code": "ES1", "ha": 2}], "municipality_names": ["Uno"], "provinces": ["Uno"], "extra": "x"},
+        {"id": "P", "kind": "river_flow", "date": "2026-10-01", "title": "t", "url": "u", "precision": "punto",
+         "details": {"point": [0.5, 0.5]}},
+        {"id": "N", "kind": "fire", "date": "2026-10-01", "title": "t", "url": "", "precision": "focos"},
+        {"id": "K", "kind": "meteor", "date": "2026-10-01", "title": "t", "url": "u", "precision": "punto"},
+    ])
+    cov, out = A.published(doc, "s", resolve, lambda lon, lat: (["ES9"], ["09999"]))
+    assert cov == {"label": "Toda España", "sites": None, "note": "n"}
+    assert [s["id"] for s in out] == ["1", "P"]  # no link, or a kind the map cannot draw: dropped
+    first = out[0]
+    assert first["source"] == "s" and first["sites"] == [{"code": "ES1", "ha": 2}]
+    assert first["municipalities"] == ["01001"] and first["details"] == {} and "extra" not in first
+    assert out[1]["sites"] == [{"code": "ES9"}] and out[1]["municipalities"] == ["09999"]
+
+
+def test_published_refuses_another_source_or_version():
+    for doc in (_doc([], source="otro"), _doc([], version=2)):
+        with pytest.raises(ValueError):
+            A.published(doc, "s", resolve, lambda lon, lat: ([], []))

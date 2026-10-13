@@ -1,12 +1,14 @@
 """Translate what each sibling project publishes into signals (see CONTRATO.md).
 
-One function per source. Each returns (coverage, signals). When a sibling publishes its own
-signals.json, its adapter shrinks to reading that file. Municipality names are resolved to INE
-codes with `resolve`, a callable (name, provinces) -> code | None built from the IGN layer.
+A sibling that publishes its own signals.json is read with `published`. The others still have
+one function each here, which reads their internal files; each returns (coverage, signals).
+Municipality names are resolved to INE codes with `resolve`, a callable
+(name, provinces) -> code | None built from the IGN layer.
 """
 
 from __future__ import annotations
 
+import sys
 from datetime import date, timedelta
 from typing import Callable
 
@@ -27,6 +29,41 @@ def _signal(source: str, id: str, kind: str, day: str, title: str, url: str, pre
 
 def _munis(resolve: Resolve, names: list[str] | None, provinces: list[str] | None) -> list[str]:
     return sorted({c for n in names or [] if (c := resolve(n, provinces or []))})
+
+
+KINDS = {"notice", "resolution", "fire", "land_change", "wetland_water", "river_flow", "power_line", "migration"}
+REQUIRED = ("id", "kind", "date", "title", "url", "precision")
+
+
+def published(doc: dict, source: str, resolve: Resolve, locate: Callable) -> tuple[dict, list[dict]]:
+    """A sibling's own signals.json (CONTRATO.md, version 1), checked and placed.
+
+    A signal missing a required field, or of a kind the map cannot draw, is dropped: every figure
+    must be checkable. Municipality names become INE codes here, so a sibling need not carry the
+    IGN layer; a «punto» signal with no place at all gets its sites and municipality from its point.
+    """
+    if doc.get("version") != 1 or doc.get("source") != source:
+        raise ValueError(f"signals.json de {doc.get('source')!r}, versión {doc.get('version')!r}")
+    out, dropped = [], 0
+    for s in doc["signals"]:
+        if not all(s.get(k) for k in REQUIRED) or s["kind"] not in KINDS:
+            dropped += 1
+            continue
+        details = s.get("details") or {}
+        sites = [x for x in s.get("sites") or [] if x.get("code")]
+        munis = sorted(set(s.get("municipalities") or [])
+                       | set(_munis(resolve, s.get("municipality_names"), s.get("provinces"))))
+        if s["precision"] == "punto" and details.get("point") and not sites and not munis:
+            codes, munis = locate(*details["point"])
+            sites = [{"code": c} for c in codes]
+        out.append({"source": source, "id": str(s["id"]), "kind": s["kind"], "date": s["date"], "title": s["title"],
+                    "url": s["url"], "sites": sites, "municipalities": munis, "precision": s["precision"],
+                    "deadline": s.get("deadline"), "status": s.get("status"), "value": s.get("value"),
+                    "details": details})
+    if dropped:
+        print(f"[{source}] signals.json: {dropped} señales incompletas descartadas", file=sys.stderr)
+    cov = doc["coverage"]
+    return {"label": cov["label"], "sites": cov.get("sites"), "note": cov.get("note", "")}, out
 
 
 def observatorio(state: dict, resolve: Resolve) -> tuple[dict, list[dict]]:

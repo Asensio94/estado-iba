@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import traceback
 from datetime import date, datetime, timezone
 from functools import partial
+from pathlib import Path
 
 from . import adapters as A, config, indicators as I, places, sources, web
 
@@ -34,20 +36,22 @@ def _try(name: str, fn, failed: list[str]):
         return None
 
 
-def build(today: date | None = None) -> None:
-    today = today or date.today()
-    failed: list[str] = []
+def _places() -> dict:
+    """The sites, the municipalities and communities around them, and the lookups built on both."""
     sites = I.load_sites(sources.get_json(config.SITES_URL), config.SITE_KIND)
     shapes = {c: places.polygonal(s["geometry"]) for c, s in sites.items()}
     topo = sources.get_json(config.MUNICIPALITIES_URL)
     regs = places.regions(topo)
     munis = places.municipalities(topo, sites, regs)
-    site_reg = places.site_regions(munis, shapes, regs)
-    idx = places.name_index(munis)
-    resolve = partial(places.resolve, idx)
-    locate = places.locator(munis, shapes)
+    return {"sites": sites, "shapes": shapes, "regs": regs, "munis": munis,
+            "site_reg": places.site_regions(munis, shapes, regs),
+            "resolve": partial(places.resolve, places.name_index(munis)), "locate": places.locator(munis, shapes)}
 
-    results = {
+
+def _adapters(p: dict, today: date) -> dict:
+    """How to read each sibling that does not publish its own signals.json yet."""
+    sites, shapes, resolve, locate = p["sites"], p["shapes"], p["resolve"], p["locate"]
+    return {
         "observatorio-alegaciones": lambda: A.observatorio(sources.get_json(config.PROJECTS_URL), resolve),
         "vigia-incendios": lambda: A.vigia(sources.get_json(config.FIRES_URL), resolve, today, config.FIRE_WINDOW_DAYS),
         "centinela-natura": lambda: A.centinela(
@@ -63,14 +67,39 @@ def build(today: date | None = None) -> None:
             {r: sources.get_csv_dated(config.LINES_URL.format(region=r)) for r in config.LINE_REGIONS}, shapes),
         "sub-nocte": lambda: A.subnocte(sources.get_csv(config.MIGRATION_URL), resolve, today),
     }
+
+
+def _read(name: str, adapter, p: dict, origin: dict[str, str]):
+    """The sibling's own signals.json when it publishes a valid one; its adapter otherwise."""
+    doc = sources.published(name)
+    if doc is not None:
+        try:
+            got = A.published(doc, name, p["resolve"], p["locate"])
+            origin[name] = "signals.json"
+            return got
+        except (KeyError, TypeError, ValueError):
+            traceback.print_exc()
+            print(f"[{name}] signals.json no válido: se lee con su adaptador", file=sys.stderr)
+    origin[name] = "adaptador"
+    return adapter()
+
+
+def build(today: date | None = None) -> None:
+    today = today or date.today()
+    failed: list[str] = []
+    p = _places()
+    sites, munis, regs, site_reg = p["sites"], p["munis"], p["regs"], p["site_reg"]
+
+    origin: dict[str, str] = {}
     coverage, signals = {}, []
-    for name, fn in results.items():
-        got = _try(name, fn, failed)
+    for name, adapter in _adapters(p, today).items():
+        got = _try(name, lambda: _read(name, adapter, p, origin), failed)
         if got:
             coverage[name], sig = got
             signals += sig
         else:
             coverage[name] = {"label": "sin datos hoy", "sites": [], "note": "La fuente no respondió en la última actualización."}
+    signals = I.recent(signals, today, config.WINDOWS)
     signals = I.with_regions(I.restrict(signals, sites), {m["ine"]: m["region"] for m in munis}, site_reg)
 
     ids = {s["id"] for s in signals if s["source"] == "observatorio-alegaciones"}
@@ -85,17 +114,75 @@ def build(today: date | None = None) -> None:
     by_kind: dict[str, int] = {}
     for s in signals:
         by_kind[s["kind"]] = by_kind.get(s["kind"], 0) + 1
+    own = [k for k, v in origin.items() if v == "signals.json"]
     print(f"{len(sites)} espacios · {len(signals)} señales {by_kind} · {len(chains)} actos con promotor"
+          + f" · con signals.json propio: {', '.join(own) or 'ninguno'}"
           + (f" · fallaron: {', '.join(failed)}" if failed else ""))
+
+
+def _sorted_sites(s: dict) -> dict:
+    return {**s, "sites": sorted(s["sites"], key=lambda x: x["code"])}
+
+
+def check(name: str, where: str, today: date | None = None) -> bool:
+    """Compare a sibling's signals.json (a path or a URL) with what its adapter reads today.
+
+    Meant for the sibling's author before publishing: both sides go through the same reading as
+    in a build, so any difference is one the panel would show. The adapter reads what is live, so
+    a file made from newer data differs by the newest facts.
+    """
+    today = today or date.today()
+    doc = sources.get_json(where) if where.startswith("http") else json.loads(Path(where).read_text(encoding="utf-8"))
+    p = _places()
+    cov_new, new = A.published(doc, name, p["resolve"], p["locate"])
+    cov_old, old = _adapters(p, today)[name]()
+    new, old = ({s["id"]: _sorted_sites(s) for s in I.recent(x, today, config.WINDOWS)} for x in (new, old))
+    print(f"signals.json: {len(new)} señales · adaptador: {len(old)}")
+    same = True
+    for k in ("label", "note"):
+        if cov_new[k] != cov_old[k]:
+            same = False
+            print(f"coverage.{k}: {cov_new[k]!r} frente a {cov_old[k]!r}")
+    a, b = cov_new["sites"], cov_old["sites"]
+    if (a is None) != (b is None) or (a is not None and set(a) != set(b)):
+        same = False
+        line = f"coverage.sites: {'todas' if a is None else len(a)} frente a {'todas' if b is None else len(b)}"
+        if a is not None and b is not None:
+            line += f" · solo en el fichero {sorted(set(a) - set(b))[:10]} · solo en el adaptador {sorted(set(b) - set(a))[:10]}"
+        print(line)
+    for label, ids in (("solo en signals.json", new.keys() - old.keys()), ("solo en el adaptador", old.keys() - new.keys())):
+        if ids:
+            same = False
+            print(f"{label}: {len(ids)} · {sorted(ids)[:10]}")
+    fields: dict[str, list[str]] = {}
+    for i in sorted(new.keys() & old.keys()):
+        x, y = new[i], old[i]
+        for f in [k for k in x if k != "details"]:
+            if x[f] != y.get(f):
+                fields.setdefault(f, []).append(f"{i}: {x[f]!r} frente a {y.get(f)!r}")
+        for k in sorted(x["details"].keys() | y["details"].keys()):
+            if x["details"].get(k) != y["details"].get(k):
+                fields.setdefault(f"details.{k}", []).append(f"{i}: {x['details'].get(k)!r} frente a {y['details'].get(k)!r}")
+    for f, diffs in sorted(fields.items()):
+        same = False
+        print(f"{f} distinto en {len(diffs)}: " + " | ".join(diffs[:3]))
+    print("Iguales." if same else "Hay diferencias.")
+    return same
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(prog="estado")
-    ap.add_argument("command", choices=["build"])
+    ap.add_argument("command", choices=["build", "check"])
+    ap.add_argument("source", nargs="?", help="check: the sibling, as in SOURCES")
+    ap.add_argument("signals", nargs="?", help="check: its signals.json, a path or a URL")
     ap.add_argument("--today", type=date.fromisoformat, default=None)
     args = ap.parse_args()
     if args.command == "build":
         build(args.today)
+    elif not (args.source in SOURCES and args.signals):
+        ap.error("check needs a source and its signals.json")
+    else:
+        sys.exit(0 if check(args.source, args.signals, args.today) else 1)
 
 
 if __name__ == "__main__":

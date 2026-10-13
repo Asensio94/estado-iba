@@ -42,6 +42,7 @@ LINES_URL = PAGES + "/riesgo-tendidos-aves/{region}/ranking_elements.csv"
 LINE_REGIONS = ["cantabria", "estrecho"]
 
 FIRE_WINDOW_DAYS = 365
+WINDOWS = {"fire": FIRE_WINDOW_DAYS}  # whoever sends the fires, the panel shows a year of them
 LAND_STATES = {"confirmada", "provisional"}  # descartada, revertida and fusionada are not pressure
 WETLAND_QUALITY = {"ok"}  # cloudy, partial or anomalous scenes do not set the state
 WETLAND_MIN_YEARS = 3  # same-month reference needs at least this many earlier years

@@ -67,7 +67,7 @@ El seguimiento de las IBA de BirdLife distingue presión, estado y respuesta. Ca
 | Contexto | Sociedad promotora → grupo → empresa cotizada | [Grafo de promotores](https://github.com/Asensio94/grafo-promotores) y [Cartera de las cotizadas](https://github.com/Asensio94/cartera-cotizadas) |
 
 1. `estado/sources.py` descarga lo que publica cada hermano.
-2. `estado/adapters.py` convierte lo publicado en **señales**: un formato común con fecha, título, enlace, espacios, municipios, precisión y plazo. Lo describe [CONTRATO.md](CONTRATO.md). Cuando un hermano publique su propio `signals.json`, su adaptador se reducirá a leerlo.
+2. Todo se convierte en **señales**: un formato común con fecha, título, enlace, espacios, municipios, precisión y plazo. Lo describe [CONTRATO.md](CONTRATO.md). Si un hermano publica su propio `signals.json`, se lee ese; si no, o si no se puede leer, `estado/adapters.py` traduce sus ficheros internos.
 3. `estado/places.py` lee los términos municipales y las comunidades autónomas del IGN (código INE) y los cruza con los espacios. También traduce a código INE los nombres de municipio que traen los hermanos y sitúa en espacio y municipio los puntos sueltos, como las estaciones de aforo.
 4. `estado/indicators.py` calcula las cifras de cada espacio con funciones puras.
 5. `estado/web.py` escribe `docs/`. La página (`estado/static/app.js`) es estática y se mueve entre vistas sin recargar.
@@ -139,6 +139,7 @@ Para cada anuncio se buscan las sociedades que lo mencionan en el Grafo de promo
 pip install -r requirements.txt
 python -m pytest -q
 python -m estado.cli build            # --today AAAA-MM-DD para fijar la fecha
+python -m estado.cli check vigia-incendios signals.json   # un signals.json frente a su adaptador
 python -m http.server -d docs
 ```
 

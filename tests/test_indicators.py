@@ -79,3 +79,9 @@ def test_with_regions_follows_sites_narrowed_by_municipalities():
                _sig("fire", [{"code": "ESX"}])]
     out = I.with_regions(signals, {"01001": "16", "08001": "09", "46250": "10"}, site_regions)
     assert [s["regions"] for s in out] == [["16"], ["16", "17"], ["17"], ["10"], []]
+
+
+def test_recent_applies_each_kind_its_window():
+    old_fire, new_fire, old_notice = (dict(_sig(k, []), date=d) for k, d in
+                                      (("fire", "2025-09-01"), ("fire", "2026-09-01"), ("notice", "2025-09-01")))
+    assert I.recent([old_fire, new_fire, old_notice], date(2026, 10, 9), {"fire": 365}) == [new_fire, old_notice]
