@@ -128,7 +128,7 @@ def check(name: str, where: str, today: date | None = None) -> bool:
     """Compare a sibling's signals.json (a path or a URL) with what its adapter reads today.
 
     Meant for the sibling's author before publishing: both sides go through the same reading as
-    in a build, so any difference is one the panel would show. The adapter reads what is live, so
+    in a build and keep only the panel's sites, so any difference is one the panel would show. The adapter reads what is live, so
     a file made from newer data differs by the newest facts.
     """
     today = today or date.today()
@@ -136,19 +136,21 @@ def check(name: str, where: str, today: date | None = None) -> bool:
     p = _places()
     cov_new, new = A.published(doc, name, p["resolve"], p["locate"])
     cov_old, old = _adapters(p, today)[name]()
-    new, old = ({s["id"]: _sorted_sites(s) for s in I.recent(x, today, config.WINDOWS)} for x in (new, old))
+    # Only the panel's sites count: a ZEC code a sibling also sends never shows here.
+    new, old = ({s["id"]: _sorted_sites(s) for s in I.restrict(I.recent(x, today, config.WINDOWS), p["sites"])}
+                for x in (new, old))
     print(f"signals.json: {len(new)} señales · adaptador: {len(old)}")
     same = True
     for k in ("label", "note"):
         if cov_new[k] != cov_old[k]:
             same = False
             print(f"coverage.{k}: {cov_new[k]!r} frente a {cov_old[k]!r}")
-    a, b = cov_new["sites"], cov_old["sites"]
-    if (a is None) != (b is None) or (a is not None and set(a) != set(b)):
+    a, b = (None if c["sites"] is None else set(c["sites"]) & p["sites"].keys() for c in (cov_new, cov_old))
+    if a != b:
         same = False
         line = f"coverage.sites: {'todas' if a is None else len(a)} frente a {'todas' if b is None else len(b)}"
         if a is not None and b is not None:
-            line += f" · solo en el fichero {sorted(set(a) - set(b))[:10]} · solo en el adaptador {sorted(set(b) - set(a))[:10]}"
+            line += f" · solo en el fichero {sorted(a - b)[:10]} · solo en el adaptador {sorted(b - a)[:10]}"
         print(line)
     for label, ids in (("solo en signals.json", new.keys() - old.keys()), ("solo en el adaptador", old.keys() - new.keys())):
         if ids:
