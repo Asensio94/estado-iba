@@ -158,3 +158,14 @@ def test_published_refuses_another_source_or_version():
     for doc in (_doc([], source="otro"), _doc([], version=2)):
         with pytest.raises(ValueError):
             A.published(doc, "s", resolve, lambda lon, lat: ([], []))
+
+
+def test_natural_persons_are_never_named_as_promoters():
+    state = {"anuncios": {"A": dict(_notice("A", None, ["ES1"]), promotor="D. Juan Pérez García"),
+                          "B": dict(_notice("B", None, ["ES1"]), promotor="Esteyco")},
+             "resoluciones": {}}
+    _, out = A.observatorio(state, resolve)
+    assert [s["details"]["promoter"] for s in out] == [None, "Esteyco"]
+    doc = _doc([{"id": "A", "kind": "notice", "date": "2026-10-01", "title": "t", "url": "u",
+                 "precision": "municipio", "details": {"promoter": "Dña. Ana López"}}])
+    assert A.published(doc, "s", resolve, lambda lon, lat: ([], []))[1][0]["details"]["promoter"] is None

@@ -79,5 +79,5 @@ Compara el fichero con lo que el adaptador lee hoy de la web del proyecto y enum
 ## Reglas
 
 - Nada de ubicaciones de especies: ni colonias, ni nidos, ni dormideros, ni territorios.
-- Nada de datos personales: los promotores que son personas físicas no se nombran.
+- Nada de datos personales: los promotores que son personas físicas no se nombran. Los boletines las presentan con tratamiento («D.», «Dña.»); el hub deja sin promotor a quien llegue así, lo envíe quien lo envíe.
 - Una señal sin `url` no se publica: cada cifra tiene que poder comprobarse.

@@ -8,6 +8,7 @@ Municipality names are resolved to INE codes with `resolve`, a callable
 
 from __future__ import annotations
 
+import re
 import sys
 from datetime import date, timedelta
 from typing import Callable
@@ -18,6 +19,16 @@ from shapely.geometry import Point
 from . import config
 
 Resolve = Callable[[str, list[str]], "str | None"]
+
+
+# The bulletins name a natural person as «D. Nombre Apellidos»; companies and bodies carry no
+# honorific. Many companies carry no legal form either, so the test is the honorific, not its absence.
+_PERSON = re.compile(r"^\s*(D\.ª|Dª|Dña\.?|D\.|Don|Doña|Sr\.|Sra\.)\s", re.IGNORECASE)
+
+
+def promoter(name: str | None) -> str | None:
+    """The promoter as published, or None when it is a natural person: the panel names no one."""
+    return None if not name or _PERSON.match(name) else name
 
 
 def _signal(source: str, id: str, kind: str, day: str, title: str, url: str, precision: str, **kw) -> dict:
@@ -50,6 +61,8 @@ def published(doc: dict, source: str, resolve: Resolve, locate: Callable) -> tup
             dropped += 1
             continue
         details = s.get("details") or {}
+        if "promoter" in details:  # whoever sends it
+            details = {**details, "promoter": promoter(details["promoter"])}
         sites = [x for x in s.get("sites") or [] if x.get("code")]
         munis = sorted(set(s.get("municipalities") or [])
                        | set(_munis(resolve, s.get("municipality_names"), s.get("provinces"))))
@@ -83,7 +96,7 @@ def observatorio(state: dict, resolve: Resolve) -> tuple[dict, list[dict]]:
                     municipalities=_munis(resolve, n.get("municipios"), n.get("provincias")),
                     deadline=n.get("fecha_limite") or None,
                     value={"amount": n["potencia_mw"], "unit": "MW"} if n.get("potencia_mw") else None,
-                    category=n.get("categoria"), promoter=n.get("promotor") or None,
+                    category=n.get("categoria"), promoter=promoter(n.get("promotor")),
                     file=n.get("expediente") or None, department=n.get("departamento"))
         out.append(s)
         by_id[s["id"]] = s
@@ -95,7 +108,7 @@ def observatorio(state: dict, resolve: Resolve) -> tuple[dict, list[dict]]:
                            municipalities=_munis(resolve, r.get("municipios"), r.get("provincias")),
                            status=r.get("sentido_etiqueta") or r.get("sentido"),
                            value={"amount": r["potencia_mw"], "unit": "MW"} if r.get("potencia_mw") else None,
-                           category=r.get("categoria"), promoter=r.get("promotor") or None,
+                           category=r.get("categoria"), promoter=promoter(r.get("promotor")),
                            file=r.get("expediente") or None, paired_with=paired["id"] if paired else None))
     cov = {"label": "Toda España, desde el 27 de julio de 2026",
            "sites": None, "note": "Anuncios del BOE con trámite ambiental, leídos cada mañana."}
