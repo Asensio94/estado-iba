@@ -54,8 +54,10 @@ def test_reading_a_tile_scales_and_drops_empty_or_filled_pixels(tmp_path):
     assert v[1] == pytest.approx(1.2) and v[4] == pytest.approx(1.2)
 
 
-def test_a_grid_other_than_the_one_assumed_is_refused(tmp_path):
+def test_lat_lon_as_corners_or_centres_pass_but_another_grid_is_refused(tmp_path):
     p = tmp_path / "VNP46A4.A2020001.h17v04.002.2025086173349.h5"
+    _tile(p, lat0=50.0)  # what NASA's files carry: the top-left corner of each pixel
+    assert L.read(p).shape == (2400 * 2400,)
     _tile(p, lat0=49.0)
     with pytest.raises(ValueError, match="rejilla"):
         L.read(p)

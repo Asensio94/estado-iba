@@ -183,14 +183,23 @@ def read(path: Path) -> np.ndarray:
 
 
 def _check_grid(f, names: dict[str, str], name: str) -> None:
+    """The file's lat/lon must describe the 10° tile of 2400 steps the job assumes.
+
+    NASA's files list the pixels' top-left corners (the first latitude is the tile's edge),
+    other tools write their centres: either is the same grid, anything else is not.
+    """
     tile = name.split(".")[2]
     h, v = int(tile[1:3]), int(tile[4:6])
-    want = {"lat": 90 - 10 * v - 0.5 / PER_DEGREE, "lon": -180 + 10 * h + 0.5 / PER_DEGREE}
-    for axis, first in want.items():
-        if axis in names:
-            got = float(np.asarray(f[names[axis]][()]).ravel()[0])
-            if abs(got - first) > 1e-3:
-                raise ValueError(f"{name}: la rejilla no es la esperada ({axis} {got} frente a {first})")
+    edges = {"lat": (90 - 10 * v, -1), "lon": (-180 + 10 * h, 1)}
+    for axis, (edge, sign) in edges.items():
+        if axis not in names:
+            continue
+        a = np.asarray(f[names[axis]][()], dtype=np.float64).ravel()
+        step = (a[-1] - a[0]) / (a.size - 1) if a.size > 1 else 0.0
+        first = (a[0] - edge) * PER_DEGREE * sign
+        if a.size != TILE or abs(step * PER_DEGREE - sign) > 1e-6 or min(abs(first), abs(first - 0.5)) > 0.05:
+            raise ValueError(f"{name}: la rejilla no es la esperada ({axis} de {a[0]} a {a[-1]} en {a.size} pasos, "
+                             f"borde {edge})")
 
 
 def _dump(doc: dict) -> str:
