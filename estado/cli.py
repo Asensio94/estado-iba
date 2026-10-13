@@ -71,7 +71,8 @@ def _adapters(p: dict, today: date) -> dict:
         "sub-nocte": lambda: A.subnocte(sources.get_csv(config.MIGRATION_URL), resolve, today),
         "black-marble": lambda: A.luz(
             json.loads(config.LIGHT_FILE.read_text(encoding="utf-8")), shapes, config.LIGHT_BASELINE,
-            config.LIGHT_RECENT, config.LIGHT_MIN_RISE, config.LIGHT_MIN_ABS, config.LIGHT_MIN_PIXELS),
+            config.LIGHT_RECENT, config.LIGHT_MIN_RISE, config.LIGHT_MIN_ABS, config.LIGHT_MIN_PIXELS,
+            config.LIGHT_PEERS),
     }
 
 

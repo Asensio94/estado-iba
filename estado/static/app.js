@@ -30,7 +30,7 @@ const MEANS = {
   fire: "Incendio visto por satélite. Si ya hay perímetro de Sentinel-2, las hectáreas son las quemadas dentro del espacio; si no, la extensión de los píxeles con focos, que exagera los incendios pequeños.",
   land_change: "Centinela compara la vegetación con imágenes de Sentinel-2. Una alerta no es una infracción: puede ser una obra autorizada, una corta o un cambio de cultivo. Se indica si se encontró expediente.",
   wetland_water: "Agua libre medida con Sentinel-2, comparada con la mediana del mismo mes en años anteriores.",
-  night_light: "Brillo medio de noche de los píxeles del espacio en las imágenes anuales del satélite VIIRS (NASA Black Marble), de media en los dos últimos años frente a los tres primeros. El sensor apenas ve la luz azul de los LED blancos: una subida es real y, si acaso, se queda corta; una bajada puede ser solo el cambio de farolas, por eso no se avisa de las bajadas.",
+  night_light: "Brillo medio de noche de los píxeles del espacio en las imágenes anuales del satélite VIIRS (NASA Black Marble), de media en los dos últimos años frente a los tres primeros, y comparado con lo que cambiaron los espacios que eran igual de oscuros: el producto sube y baja de un año a otro en todo el país a la vez. El sensor apenas ve la luz azul de los LED blancos: una subida es real y, si acaso, se queda corta; una bajada puede ser solo el cambio de farolas, por eso no se avisa de las bajadas.",
 };
 const PREC_NOTE = {
   municipio: "Este anuncio no trae parcelas: se ha cruzado el término municipal entero con el espacio, así que el proyecto puede quedar fuera.",
@@ -98,7 +98,7 @@ function precTag(s) {
 function value(s) {
   if (!s.value || s.value.amount == null) return "";
   const a = s.value.amount;
-  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(s.value.unit)}`;
+  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(s.value.unit)}${s.kind === "night_light" ? " más de lo esperable" : ""}`;
 }
 function siteHa(s, code) {
   const x = (s.sites || []).find(z => z.code === code);
@@ -217,7 +217,7 @@ const IND = {
   notices: {label: "proyectos en su municipio", f: n => n.notices},
   fire_ha: {label: "hectáreas quemadas", f: n => n.fire_ha},
   land: {label: "alertas de cambio de uso", f: n => n.land || 0},
-  light: {label: "% más de luz de noche", f: n => n.light || 0},
+  light: {label: "% más luz de noche que otros igual de oscuros", f: n => n.light || 0},
 };
 
 function ranking(key) {
@@ -596,7 +596,7 @@ function signalItem(s, code) {
   if (s.status && s.kind !== "notice") extra.push(esc(s.status));
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
-  if (s.kind === "night_light") extra.push(`${num(d.radiance, 2)} nW/cm²/sr frente a ${num(d.baseline, 2)} · píxeles VIIRS de unos 500 m`);
+  if (s.kind === "night_light") extra.push(`${num(d.radiance, 2)} nW/cm²/sr frente a ${num(d.baseline, 2)}; como los igual de oscuros, ${num(d.expected, 2)} · píxeles VIIRS de unos 500 m`);
   else if (PRECISION[s.precision] && s.kind !== "wetland_water") extra.push(PRECISION[s.precision]);
   const fotos = d.before && d.after ? `<div class="fotos">
       <figure><img loading="lazy" src="${esc(d.before)}" alt="Antes"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
@@ -674,8 +674,13 @@ async function luzPanel(code) {
   const cur = mean(now), pct = Math.round(100 * (cur / ref - 1)), span = `${years.at(-cov.recent)}-${years.at(-1)}`;
   const delta = pct === 0 ? "lo mismo" : `un ${Math.abs(pct)} % ${pct > 0 ? "más" : "menos"}`;
   const caption = i => r[i] == null ? `${years[i]}: sin dato` : `${years[i]}: ${num(r[i], 2)} nW/cm²/sr`;
+  const sig = (bySite.get(code) || []).find(s => s.kind === "night_light"), d = sig?.details;
+  const drift = d && Math.round(100 * (d.expected / d.baseline - 1));
+  const peers = sig
+    ? `En los espacios que eran igual de oscuros ${drift < 0 ? "bajó" : "subió"} un ${Math.abs(drift)} %: aquí hay un ${sig.value.amount} % más luz de la esperable.`
+    : "Cada espacio se compara con los que eran igual de oscuros, porque el producto de la NASA sube y baja de un año a otro en todo el país a la vez.";
   host.innerHTML = `<h3>Luz artificial de noche</h3>
-    <p style="margin:0 0 6px">Brillo medio en ${span}: <b>${num(cur, 2)}</b> nW/cm²/sr, ${delta} que en ${b0}-${b1}.${pct < 0 ? " Una bajada puede ser solo el cambio a LED, que el satélite apenas ve." : ""}</p>
+    <p style="margin:0 0 6px">Brillo medio en ${span}: <b>${num(cur, 2)}</b> nW/cm²/sr, ${delta} que en ${b0}-${b1}.${pct < 0 ? " Una bajada puede ser solo el cambio a LED, que el satélite apenas ve." : ""} ${peers}</p>
     <div class="luz-graf"></div>
     <p class="meta luz-dato" aria-live="polite">${caption(years.length - 1)}</p>
     <details><summary>Ver los datos</summary><table class="luz-tabla"><thead><tr><th>Año</th><th class="n">nW/cm²/sr</th></tr></thead>
@@ -769,7 +774,7 @@ function resumen(n) {
   if (n.open) parts.push(`${n.open} con plazo abierto`);
   if (n.fire_ha) parts.push(`${num(n.fire_ha, 1)} ha quemadas`);
   if (n.land) parts.push(`${n.land} ${n.land === 1 ? "cambio de uso" : "cambios de uso"}`);
-  if (n.light) parts.push(`${n.light} % más de luz de noche`);
+  if (n.light) parts.push(`${n.light} % más luz de noche que otros espacios igual de oscuros`);
   return parts.join(" · ");
 }
 

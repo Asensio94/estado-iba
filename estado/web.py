@@ -150,9 +150,10 @@ def _params() -> str:
          "el 10 % de aerogeneradores, apoyos y tramos de línea con más riesgo de cada región modelada"),
         ("Luz de noche en aumento",
          f"brillo medio de los {config.LIGHT_RECENT} últimos años al menos un {config.LIGHT_MIN_RISE * 100:.0f} % y "
-         f"{str(config.LIGHT_MIN_ABS).replace('.', ',')} nW/cm²/sr por encima del de "
-         f"{config.LIGHT_BASELINE[0]}-{config.LIGHT_BASELINE[1]}; solo espacios de {config.LIGHT_MIN_PIXELS} píxeles "
-         "VIIRS o más (unos 500 m cada uno)"),
+         f"{str(config.LIGHT_MIN_ABS).replace('.', ',')} nW/cm²/sr por encima del que tendría si hubiera cambiado "
+         f"desde {config.LIGHT_BASELINE[0]}-{config.LIGHT_BASELINE[1]} como la mediana de los "
+         f"{2 * config.LIGHT_PEERS} espacios más parecidos en brillo de entonces; solo espacios de "
+         f"{config.LIGHT_MIN_PIXELS} píxeles VIIRS o más (unos 500 m cada uno)"),
     ]
     body = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in rows)
     return f'<table class="params"><tbody>{body}</tbody></table>'
@@ -204,7 +205,7 @@ __FAVICON__
       <li><b>Proyectos.</b> El Observatorio de alegaciones lee el BOE cada mañana. Si el anuncio trae las parcelas afectadas, el cruce con los espacios es con esas parcelas; si no, con el término municipal entero, que es solo una aproximación y se marca «por municipio».</li>
       <li><b>Quién está detrás.</b> El Grafo de promotores relaciona cada acto del BOE con las sociedades que aparecen en él y estas con su grupo, a partir del BORME. La Cartera de las cotizadas relaciona sociedades con empresas cotizadas por sus cuentas anuales. Cuando la cotizada se alcanza a través de otra sociedad del grupo, se indica.</li>
       <li><b>Fuego, suelo, agua, ríos, aerogeneradores y tendidos.</b> Vigía de incendios, Centinela Natura, Vigilancia de humedales, Caudal ecológico y Riesgo de tendidos para aves publican cada hecho con su lugar. Aquí se agrupan por espacio y municipio.</li>
-      <li><b>Luz de noche.</b> Una vez al mes se descargan de la NASA las imágenes anuales de Black Marble (satélite VIIRS, píxeles de unos 500 m) y se calcula el brillo medio de cada espacio año a año. Solo se avisa de las subidas: el sensor apenas ve la luz azul de los LED blancos, así que una bajada puede ser solo el cambio de farolas y una subida, si acaso, se queda corta. En los espacios marinos, parte de la luz es de barcos.</li>
+      <li><b>Luz de noche.</b> Una vez al mes se descargan de la NASA las imágenes anuales de Black Marble (satélite VIIRS, píxeles de unos 500 m) y se calcula el brillo medio de cada espacio año a año. Como el producto sube y baja de un año a otro en todo el país a la vez, cada espacio se compara con los que eran igual de oscuros en 2012-2014. Solo se avisa de las subidas: el sensor apenas ve la luz azul de los LED blancos, así que una bajada puede ser solo el cambio de farolas y una subida, si acaso, se queda corta. En los espacios marinos, parte de la luz es de barcos.</li>
       <li><b>Municipios.</b> Los nombres de municipio que traen los anuncios se resuelven al código INE con la capa del IGN; los homónimos se desempatan por provincia y, si no, se dejan sin resolver.</li>
       <li>No hay un índice que lo resuma todo: mezclar hectáreas quemadas con proyectos exigiría decidir cuánto pesa cada cosa, y esa decisión no es técnica.</li>
     </ol>

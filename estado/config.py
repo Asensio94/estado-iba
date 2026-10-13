@@ -49,6 +49,7 @@ LIGHT_RECENT = 2  # years averaged as «now», so one odd year makes no signal
 LIGHT_MIN_RISE = 0.25  # share over the baseline
 LIGHT_MIN_ABS = 0.2  # nW·cm⁻²·sr⁻¹: near darkness a tiny change is a large share
 LIGHT_MIN_PIXELS = 4  # ~70 ha: one or two pixels are too noisy to read a trend
+LIGHT_PEERS = 25  # sites on each side in baseline brightness whose median change a site is held to
 
 FIRE_WINDOW_DAYS = 365
 WINDOWS = {"fire": FIRE_WINDOW_DAYS}  # whoever sends the fires, the panel shows a year of them
