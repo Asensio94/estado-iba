@@ -53,6 +53,18 @@ def test_vigia_prefers_sentinel2_and_respects_window():
     assert by["F2"]["precision"] == "focos" and by["F2"]["value"] == {"amount": 14, "unit": "ha"}
 
 
+def test_a_measured_burnt_area_decides_the_sites():
+    focos = [{"codigo": "ES1", "ha": 14}]
+    clear = {"natura": focos, "ha_focos": 14}
+    # Sentinel-2 saw it all and none of it burnt inside ES1: the hot pixels no longer count.
+    assert A.fire_sites(clear, {"ha": 3.0, "natura": []}) == ([], "perimetro", 3.0, "provisional")
+    # Under clouds the burnt area is a lower bound: ES1 stays, without hectares.
+    assert A.fire_sites(clear, {"ha": 3.0, "nublado": True, "natura": [{"codigo": "ES2", "ha": 3.0}]})[0] ==         [{"code": "ES2", "ha": 3.0}, {"code": "ES1"}]
+    # Clouds hid everything, or no area yet: nothing was measured.
+    for s2 in ({"ha": 0, "nublado": True, "natura": []}, {"natura": []}):
+        assert A.fire_sites(clear, s2) == ([{"code": "ES1", "ha": 14}], "focos", 14, None)
+
+
 def test_centinela_keeps_live_states_and_flips_point():
     fc = {"features": [
         {"properties": {"id": "C1", "estado": "confirmada", "detectada": "2026-06-01", "ha": 2.0,

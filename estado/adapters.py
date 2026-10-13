@@ -115,12 +115,28 @@ def observatorio(state: dict, resolve: Resolve) -> tuple[dict, list[dict]]:
     return cov, out
 
 
-def vigia(fc: dict, resolve: Resolve, today: date, window_days: int) -> tuple[dict, list[dict]]:
-    """Fires of the last window_days, with the hectares inside each Natura site.
+def fire_sites(p: dict, s2: dict) -> tuple[list[dict], str, float | None, str | None]:
+    """The sites a fire burns in, how they were found, its hectares and the state of its perimeter.
 
-    The Sentinel-2 burnt area is used when vigía has it; otherwise the extent of the hot pixels,
-    which overstates small fires (a 1 ha fire lights a 14 ha VIIRS pixel).
+    As on the fire's own page in vigía: once Sentinel-2 has measured the burnt area, the fire is
+    in the sites that area reaches and in no other, even if its hot pixels touched one. Under
+    clouds the area is only a lower bound, so the sites of the hot pixels are not ruled out and
+    stay, without hectares. A perimeter with no area yet, or clouded out entirely, measured
+    nothing: the hot pixels decide, and they overstate small fires (a 1 ha fire lights a 14 ha
+    VIIRS pixel).
     """
+    measured = s2.get("ha") is not None and not (s2.get("nublado") and not s2["ha"])
+    if not measured:
+        return [{"code": n["codigo"], "ha": n.get("ha")} for n in p.get("natura") or []], "focos", p.get("ha_focos"), None
+    sites = [{"code": n["codigo"], "ha": n.get("ha")} for n in s2.get("natura") or []]
+    if s2.get("nublado"):
+        burnt = {x["code"] for x in sites}
+        sites += [{"code": n["codigo"]} for n in p.get("natura") or [] if n["codigo"] not in burnt]
+    return sites, "perimetro", s2["ha"], "definitivo" if s2.get("definitivo") else "provisional"
+
+
+def vigia(fc: dict, resolve: Resolve, today: date, window_days: int) -> tuple[dict, list[dict]]:
+    """Fires of the last window_days, with the hectares inside each Natura site (see fire_sites)."""
     since = (today - timedelta(days=window_days)).isoformat()
     out = []
     for f in fc["features"]:
@@ -128,17 +144,14 @@ def vigia(fc: dict, resolve: Resolve, today: date, window_days: int) -> tuple[di
         day = p["primera"][:10]
         if day < since:
             continue
-        s2 = p.get("perimetro_s2") or {}
-        natura, precision = (s2["natura"], "perimetro") if s2.get("natura") else (p.get("natura") or [], "focos")
+        sites, precision, ha, status = fire_sites(p, p.get("perimetro_s2") or {})
         place = p.get("lugar") or {}
-        ha = s2.get("ha") if s2.get("natura") else p.get("ha_focos")
         out.append(_signal("vigia-incendios", p["id"], "fire", day,
                            f"Incendio en {place.get('municipio') or 'lugar sin identificar'}",
-                           f"{config.PAGES}/vigia-incendios/#{p['id']}", precision,
-                           sites=[{"code": n["codigo"], "ha": n.get("ha")} for n in natura],
+                           f"{config.PAGES}/vigia-incendios/#{p['id']}", precision, sites=sites,
                            municipalities=_munis(resolve, [place["municipio"]] if place.get("municipio") else [],
                                                  [place.get("provincia")] if place.get("provincia") else []),
-                           status="definitivo" if s2.get("definitivo") else "provisional" if s2 else None,
+                           status=status,
                            value={"amount": ha, "unit": "ha"} if ha else None,
                            province=place.get("provincia"), point=p.get("centro")))
     cov = {"label": "Toda España", "sites": None,
