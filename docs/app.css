@@ -126,6 +126,17 @@ p.sec-sub{margin:0 0 12px;color:var(--muted);font-size:15px}
 .fotos figure{margin:0}
 .fotos img{width:100%;aspect-ratio:1;object-fit:cover;display:block;border:1px solid var(--line);background:var(--ground)}
 .fotos figcaption{font:12px var(--font-data);color:var(--muted)}
+.fotos.grandes{margin:0 0 14px;gap:10px}
+.aviso-cab{margin:18px 0 0}
+.aviso-cab h2{font:700 clamp(24px,3.2vw,36px)/1.08 var(--font-title);margin:8px 0 0;max-width:62ch}
+.aviso-mapa{height:340px;border:1px solid var(--line)}
+.significa-txt{color:var(--muted);font-size:15px;max-width:62ch}
+dl.datos{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+dl.datos dt{color:var(--muted);font-size:14px}
+dl.datos dd{margin:0;font-size:15px}
+.lista-simple{margin:0;padding-left:18px}
+.lista-simple li{margin:2px 0}
+a.fuera::after{content:" ↗"}
 .significa summary{cursor:pointer;font-size:13.5px;color:var(--muted)}
 .significa p{margin:4px 0 0;font-size:14px}
 .vacio{color:var(--muted);font-size:15px;margin:0}
