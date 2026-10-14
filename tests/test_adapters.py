@@ -149,6 +149,7 @@ def test_tendidos_counts_top_risk_inside_each_site():
     cov, out = A.tendidos({"cantabria": (rows, "2026-10-01")}, {"ES1": box(0, 0, 1, 1), "ES9": box(8, 8, 9, 9)})
     assert [(s["sites"], s["value"]["amount"]) for s in out] == [([{"code": "ES1"}], 2)]
     assert out[0]["title"] == "1 aerogenerador y 1 apoyo de riesgo alto para las aves dentro del espacio"
+    assert out[0]["url"].endswith("/riesgo-tendidos-aves/cantabria/sites/ES1.es.html")  # exactly its elements
     assert cov["sites"] == ["ES1"]  # ES9 lies outside the modelled region
 
 

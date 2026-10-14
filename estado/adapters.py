@@ -360,7 +360,8 @@ def tendidos(regions: dict[str, tuple[list[dict], str]], shapes: dict, high_shar
             c = shapes[code].representative_point()  # the count belongs to the site, not to any one pylon
             out.append(_signal("riesgo-tendidos-aves", f"{region}-{code}", "power_line", day,
                                f"{elements(kinds)} de riesgo alto para las aves dentro del espacio",
-                               f"{config.PAGES}/riesgo-tendidos-aves/{region}/map.es.html", "punto",
+                               # the site's own page: the region's map only draws its top elements
+                               f"{config.PAGES}/riesgo-tendidos-aves/{region}/sites/{code}.es.html", "punto",
                                sites=[{"code": code}], value={"amount": n, "unit": "elementos"}, region=region,
                                point=[round(c.x, 4), round(c.y, 4)]))
     cov = {"label": "Cantabria y el Estrecho", "sites": sorted(watched),
