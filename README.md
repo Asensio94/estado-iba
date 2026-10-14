@@ -28,9 +28,10 @@ Por ahora la unidad son las **ZEPA** de la Red Natura 2000, que son datos abiert
   - Lo nuevo de la semana, por tema.
   - La migración prevista para esta noche.
   - La clasificación de los espacios según el indicador que se elija.
-- **Actuar.** Cada proyecto con plazo abierto enlaza al anuncio oficial, donde se indica cómo alegar. Cada espacio y cada comunidad tienen su canal RSS: `rss/<código>.xml` y `rss/ca-<código INE>.xml`.
+- **Cada aviso, su ficha.** Pulsar un aviso abre su ficha aquí mismo, sin salir de la página: datos, fotos de antes y después si las hay, mapa, espacios y municipios. De ahí se puede ir al proyecto que lo publica o al boletín, en otra pestaña. Cualquier enlace a otra web se abre en otra pestaña.
+- **Actuar.** Cada proyecto con plazo abierto lleva en su ficha al anuncio oficial, donde se indica cómo alegar. Cada espacio y cada comunidad tienen su canal RSS: `rss/<código>.xml` y `rss/ca-<código INE>.xml`.
 
-Las direcciones son estables y se pueden compartir: `#/ca/11` (Extremadura), `#/e/ES0000014` (Monfragüe), `#/m/10190` (Torrejón el Rubio), `#/plazos`.
+Las direcciones son estables y se pueden compartir: `#/ca/11` (Extremadura), `#/e/ES0000014` (Monfragüe), `#/m/10190` (Torrejón el Rubio), `#/plazos`, y cada aviso en `#/a/<proyecto>/<id>`, como `#/a/centinela-natura/CN-202609-001`.
 
 ### El mapa
 

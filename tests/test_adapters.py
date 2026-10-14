@@ -69,7 +69,9 @@ def test_a_measured_burnt_area_decides_the_sites():
 def test_centinela_keeps_live_states_and_flips_point():
     fc = {"features": [
         {"properties": {"id": "C1", "estado": "confirmada", "detectada": "2026-06-01", "ha": 2.0,
-                        "espacios": [{"codigo": "ES1"}], "centro": [43.3, -4.0], "foto_antes": "f/a.jpg"}},
+                        "espacios": [{"codigo": "ES1", "nombre": "Uno", "tipo": "ZEC"}], "centro": [43.3, -4.0],
+                        "foto_antes": "f/a.jpg", "cubierta_previa": {"codigo": "322", "nombre": "landas y matorral"},
+                        "historial": [{"fecha": "2026-06-01", "estado": "provisional"}]}},
         {"properties": {"id": "C2", "estado": "descartada", "detectada": "2026-06-02", "ha": 3.0,
                         "espacios": [{"codigo": "ES1"}]}},
     ]}
@@ -77,6 +79,9 @@ def test_centinela_keeps_live_states_and_flips_point():
     assert [s["id"] for s in out] == ["C1"]
     assert out[0]["details"]["point"] == [-4.0, 43.3]
     assert out[0]["details"]["before"].endswith("/centinela-natura/f/a.jpg")
+    assert out[0]["details"]["cover"] == "landas y matorral"
+    assert out[0]["details"]["history"] == [["2026-06-01", "provisional"]]
+    assert out[0]["details"]["natura"] == [["ES1", "Uno", "ZEC"]]
     assert cov["sites"] == ["ES1", "ES2"]
 
 

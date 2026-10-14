@@ -179,6 +179,12 @@ def centinela(fc: dict, watched: list[str], resolve: Resolve, states: set[str]) 
                            before=base + p["foto_antes"] if p.get("foto_antes") else None,
                            after=base + p["foto_despues"] if p.get("foto_despues") else None,
                            before_date=p.get("fecha_antes"), after_date=p.get("fecha_despues"),
+                           cover=(p.get("cubierta_previa") or {}).get("nombre"),
+                           history=[[h["fecha"], h["estado"]] for h in p.get("historial") or []],
+                           parcels=p.get("n_parcelas"),
+                           # Centinela also watches the ZEC, which this panel does not draw: named here so an
+                           # alert outside every ZEPA still says which Natura 2000 site it falls in.
+                           natura=[[e["codigo"], e.get("nombre"), e.get("tipo")] for e in p.get("espacios") or []],
                            point=p["centro"][::-1] if p.get("centro") else None))  # centinela stores [lat, lon]
     cov = {"label": "Cantabria", "sites": sorted(watched),
            "note": "Cambios de vegetación con Sentinel-2, revisados cada mes."}

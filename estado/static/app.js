@@ -1,5 +1,5 @@
 "use strict";
-// Estado de las IBA: one page, five views (home, community, site, municipality, deadlines) routed by the URL hash.
+// Estado de las IBA: one page, six views (home, community, site, municipality, deadlines, signal) routed by the URL hash.
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -85,6 +85,7 @@ function dias(deadline) {
 const isOpen = s => s.deadline && s.deadline >= D.today && s.kind === "notice";
 const siteName = c => D.sitesByCode[c]?.name || c;
 const weekAgo = () => new Date(new Date(D.today + "T12:00:00") - 7 * 864e5).toISOString().slice(0, 10);
+const aviso = s => `#/a/${encodeURIComponent(s.source)}/${encodeURIComponent(s.id)}`;
 const regionLinks = ids => ids.map(id => D.regionsById[id]).filter(Boolean)
   .map(r => `<a href="#/ca/${esc(r.id)}">${esc(r.name)}</a>`).join(" · ");
 
@@ -202,12 +203,12 @@ function plazoItem(s, code) {
   const sites = s.sites.map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ");
   return `<li class="item ${daysLeft(s.deadline) <= 7 ? "urgente" : ""}">
     <div class="meta"><span class="dias">${dias(s.deadline)}</span> · hasta el ${fecha(s.deadline)} ${precTag(s)}</div>
-    <div class="t"><a href="${esc(s.url)}">${esc(s.title)}</a></div>
+    <div class="t"><a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${code ? "" : sites + " · "}${fecha(s.date)}${value(s)}${s.details.promoter ? " · " + esc(s.details.promoter) : ""}</div></li>`;
 }
 function feedItem(s) {
   const sites = s.sites.slice(0, 3).map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ") + (s.sites.length > 3 ? ` y ${s.sites.length - 3} más` : "");
-  return `<li class="item"><div class="t">${tag(s)}<a href="${esc(s.url)}">${esc(s.title)}</a></div>
+  return `<li class="item"><div class="t">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${sites} · ${fecha(s.date)}${value(s)} ${precTag(s)}</div></li>`;
 }
 
@@ -320,7 +321,7 @@ function marca(latlng, html, size, title, pop, keyboard, zIndexOffset = 0) {
 function popup(s) {
   const sites = s.sites.slice(0, 3).map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ");
   const status = s.status && !["notice", "migration"].includes(s.kind) ? " · " + esc(s.status) : "";
-  return `<div class="pop">${tag(s)}<a href="${esc(s.url)}">${esc(s.title)}</a>
+  return `<div class="pop">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a>
     <div class="meta">${fecha(s.date)}${value(s)}${status}${sites ? " · " + sites : ""}</div></div>`;
 }
 function popupNoche(s) {
@@ -332,7 +333,7 @@ function popupProyectos(x) {
   const list = x.list.slice().sort((a, b) => (isOpen(b) - isOpen(a)) || b.date.localeCompare(a.date));
   const n = list.length;
   return `<div class="pop"><b><a href="${esc(x.href)}">${esc(x.name)}</a></b> · ${n} ${n === 1 ? "proyecto" : "proyectos"}
-    <ul>${list.slice(0, 6).map(s => `<li>${isOpen(s) ? `<span class="dias">${dias(s.deadline)}</span> ` : ""}<a href="${esc(s.url)}">${esc(corta(s.title, 110))}</a>
+    <ul>${list.slice(0, 6).map(s => `<li>${isOpen(s) ? `<span class="dias">${dias(s.deadline)}</span> ` : ""}<a href="${aviso(s)}">${esc(corta(s.title, 110))}</a>
       <span class="meta">${fecha(s.date)}${s.precision === "municipio" ? " · por municipio" : ""}</span></li>`).join("")}</ul>
     ${n > 6 ? `<a href="${esc(x.href)}">y ${n - 6} más</a>` : ""}</div>`;
 }
@@ -603,7 +604,7 @@ function signalItem(s, code) {
       <figure><img loading="lazy" src="${esc(d.after)}" alt="Después"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
   const means = MEANS[s.kind] ? `<details class="significa"><summary>¿Qué significa?</summary><p>${esc(MEANS[s.kind])}${s.precision === "municipio" ? " " + esc(PREC_NOTE.municipio) : ""}</p></details>` : "";
   return `<li class="item ${isOpen(s) ? "urgente" : ""}">
-    <div class="t">${tag(s)}<a href="${esc(s.url)}">${esc(s.title)}</a></div>
+    <div class="t">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${fecha(s.date)}${code ? siteHa(s, code) : ""}${value(s)} · ${extra.join(" · ")}</div>${fotos}${means}</li>`;
 }
 function hilo(list) {
@@ -778,8 +779,119 @@ function resumen(n) {
   return parts.join(" · ");
 }
 
-function notFound() {
-  $("#vista").innerHTML = `<div class="wrap"><nav class="migas"><a href="#/">Inicio</a></nav><p class="vacio">No encuentro ese lugar.</p></div>`;
+function notFound(what = "ese lugar") {
+  document.title = "Estado de las IBA";
+  $("#vista").innerHTML = `<div class="wrap"><nav class="migas"><a href="#/">Inicio</a></nav><p class="vacio">No encuentro ${esc(what)}.</p></div>`;
+}
+
+/* ---------- Signal ---------- */
+
+// What each kind of signal carries, as label and value, so its page reads the same whoever sent it.
+function datos(s) {
+  const d = s.details || {}, out = [];
+  const add = (k, v) => { if (v != null && v !== "") out.push([k, v]); };
+  if (s.kind === "notice") add("Alegaciones", s.deadline ? (s.deadline >= D.today ? `hasta el ${fecha(s.deadline)} (${dias(s.deadline)})` : `plazo cerrado el ${fecha(s.deadline)}`) : "sin plazo conocido");
+  if (["notice", "resolution"].includes(s.kind)) add("Promotor", esc(d.promoter));
+  if (s.kind === "land_change") {
+    add("Estado", esc(s.status));
+    add("Superficie", `${num(s.value?.amount, 2)} ha`);
+    add("Antes era", esc(d.cover));
+    add("Expediente", esc(d.permit));
+    add("Parcelas catastrales que toca", d.parcels != null ? num(d.parcels) : null);
+    if (d.history?.length) add("Historia", d.history.map(([f, e]) => `${fecha(f)}: ${esc(e)}`).join(" · "));
+  } else if (s.kind === "fire") {
+    add("Superficie", s.value ? `${num(s.value.amount, 1)} ha` : null);
+    add("Provincia", esc(d.province));
+    add("Estado", esc(s.status));
+  } else if (s.kind === "wetland_water") {
+    add("Agua libre", `${num(s.value?.amount, 0)} ha`);
+    add("Lo normal en ese mes", d.ref_ha != null ? `${num(d.ref_ha, 0)} ha (mediana de ${d.ref_years?.[0]}-${d.ref_years?.at(-1)})` : null);
+  } else if (s.kind === "river_flow") {
+    add("Caudal", `${num(s.value?.amount, 2)} m³/s`);
+    add("Caudal mínimo legal", d.minimum != null ? `${num(d.minimum, 2)} m³/s` : null);
+    add("Días por debajo", d.days != null ? `${num(d.days_below)} de ${num(d.days)}` : null);
+  } else if (s.kind === "power_line") {
+    add("Elementos de riesgo alto", num(s.value?.amount));
+  } else if (s.kind === "night_light") {
+    add("Brillo reciente", `${num(d.radiance, 2)} nW/cm²/sr (${d.years?.join("-")})`);
+    add("Brillo en 2012-2014", `${num(d.baseline, 2)} nW/cm²/sr`);
+    add("Esperable, como los igual de oscuros", `${num(d.expected, 2)} nW/cm²/sr`);
+    add("Píxeles VIIRS", num(d.pixels));
+  } else if (s.kind === "migration") {
+    add("Migración prevista", LEVEL[s.status] || esc(s.status));
+  } else {
+    add("Estado", esc(s.status));
+  }
+  if (s.kind !== "night_light") add("Precisión", PRECISION[s.precision]);  // its pixels are VIIRS, said above
+  return out;
+}
+
+async function avisoView(source, id) {
+  const s = D.signals.find(x => x.source === source && x.id === id);
+  if (!s) return notFound("ese aviso");
+  await munis();
+  if (!location.hash.startsWith(aviso(s))) return;  // the reader moved on while the data loaded
+  const d = s.details || {}, src = D.sources[s.source] || {name: s.source};
+  document.title = `${s.title.slice(0, 70)} · Estado de las IBA`;
+  const site = s.sites.length === 1 ? D.sitesByCode[s.sites[0].code] : null;
+  const zepas = s.sites.map(x => `<li><a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>${x.ha != null ? ` <span class="meta">${num(x.ha, x.ha < 10 ? 1 : 0)} ha dentro</span>` : ""}</li>`).join("");
+  const otros = (d.natura || []).filter(([c]) => !D.sitesByCode[c]);
+  const munisHtml = s.municipalities.filter(i => M.byIne[i]).map(i => `<li><a href="#/m/${esc(i)}">${esc(M.byIne[i].name)}</a></li>`).join("");
+  const fotos = d.before && d.after ? `<div class="fotos grandes">
+      <figure><img src="${esc(d.before)}" alt="Antes, ${esc(fecha(d.before_date))}"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
+      <figure><img src="${esc(d.after)}" alt="Después, ${esc(fecha(d.after_date))}"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
+  const original = ["notice", "resolution"].includes(s.kind) ? "Leer el anuncio en el boletín"
+    : s.kind === "night_light" ? "Ver el producto de la NASA" : `Ver en ${src.name}`;
+  $("#vista").innerHTML = `<div class="wrap">
+    <nav class="migas"><a href="#/">Inicio</a> › ${s.regions?.length ? regionLinks(s.regions) + " › " : ""}${site ? `<a href="#/e/${esc(site.code)}">${esc(site.name)}</a> › ` : ""}${esc((KIND[s.kind] || {}).tag || "Aviso")}</nav>
+    <div class="aviso-cab">${tag(s)} <span class="meta">${fecha(s.date)} · según ${esc(src.name)}</span>
+      <h2>${esc(s.title)}</h2></div>
+    <div class="lugar">
+      <div>
+        ${fotos}
+        <div class="lienzo aviso-mapa" id="aviso-mapa" role="region" aria-label="Dónde está"></div>
+        ${MEANS[s.kind] ? `<p class="significa-txt">${esc(MEANS[s.kind])}${s.precision === "municipio" ? " " + esc(PREC_NOTE.municipio) : ""}</p>` : ""}
+        ${s.kind === "night_light" && site ? `<p><a href="#/e/${esc(site.code)}">La serie de 2012 a hoy, en la ficha de ${esc(site.name)}</a></p>` : ""}
+      </div>
+      <aside>
+        <div class="panel"><h3>Datos</h3><dl class="datos">${datos(s).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl></div>
+        <div class="panel"><h3>Dónde</h3>
+          ${zepas ? `<p class="meta" style="margin:0 0 4px">${esc(D.kind)}</p><ul class="lista-simple">${zepas}</ul>`
+            : `<p style="margin:0 0 6px">No cae dentro de ninguna ${esc(D.kind)}.</p>`}
+          ${otros.length ? `<p class="meta" style="margin:8px 0 4px">Otros espacios Natura 2000</p><ul class="lista-simple">${otros.map(([c, n, t]) => `<li>${esc(n || c)} <span class="meta">${esc(t || "")} ${esc(c)}</span></li>`).join("")}</ul>` : ""}
+          ${munisHtml ? `<p class="meta" style="margin:8px 0 4px">Municipios</p><ul class="municipios">${munisHtml}</ul>` : ""}</div>
+        <div class="panel"><h3>De dónde sale</h3>
+          <p style="margin:0 0 6px">${esc(src.name)}${src.watches ? ` vigila ${esc(src.watches)}` : ""}. Aquí se resume; el original tiene todo el detalle.</p>
+          <a class="fuera" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(original)}</a></div>
+        ${hilo([s])}
+      </aside>
+    </div></div>`;
+  window.scrollTo(0, 0);
+  avisoMapa(s);
+}
+
+async function avisoMapa(s) {
+  await shapes();
+  const el = $("#aviso-mapa");
+  if (!el?.isConnected) return;
+  const map = baseMap(el, {scrollWheelZoom: false});
+  const codes = new Set(s.sites.map(x => x.code));
+  const poly = L.geoJSON({type: "FeatureCollection", features: SHAPES.features.filter(f => codes.has(f.properties.code))}, {
+    style: {color: MAP_ACCENT, weight: 2, fillColor: MAP_ACCENT, fillOpacity: .12},
+    onEachFeature: (f, l) => { l.bindTooltip(esc(f.properties.name), {sticky: true}); l.on("click", () => { location.hash = "#/e/" + f.properties.code; }); },
+  }).addTo(map);
+  const ly = LAYERS.find(x => x.kinds.includes(s.kind));
+  // Projects carry no point: they sit at the municipalities they name.
+  const pts = s.details?.point ? [[s.details.point[1], s.details.point[0]]]
+    : s.municipalities.filter(i => M.byIne[i]).map(i => [M.byIne[i].point[1], M.byIne[i].point[0]]);
+  for (const p of pts) {
+    const px = 22;
+    L.marker(p, {icon: L.divIcon({className: "marca", html: icono(ly?.shape || "circle", ly?.color || MAP_ACCENT, px, {stroke: ly?.stroke}),
+      iconSize: [px, px], iconAnchor: [px / 2, px / 2]}), title: s.title, alt: s.title, keyboard: false}).addTo(map);
+  }
+  const b = poly.getBounds();
+  for (const p of pts) b.extend(p);
+  if (b.isValid()) map.fitBounds(b, {padding: [24, 24], maxZoom: pts.length && !codes.size ? 13 : 14});
 }
 
 /* ---------- Router ---------- */
@@ -789,12 +901,13 @@ function route() {
   MAPS = [];
   capa = null;
   const h = location.hash.replace(/^#\/?/, "");
-  const [kind, id] = h.split("/");
+  const [kind, id, more] = h.split("/");
   document.body.classList.toggle("en-lugar", Boolean(kind));  // away from home the header shrinks to its title
   if (kind === "e" && id) return siteView(decodeURIComponent(id));
   if (kind === "m" && id) return muniView(decodeURIComponent(id));
   if (kind === "ca" && id) return regionView(decodeURIComponent(id));
   if (kind === "plazos") return plazos();
+  if (kind === "a" && id && more) return avisoView(decodeURIComponent(id), decodeURIComponent(more));
   if (/^ES[0-9A-Z]{7}$/.test(h)) { location.replace("#/e/" + h); return; }  // old v1 anchors
   home();
 }
@@ -812,3 +925,9 @@ fetch("datos/hub.json").then(r => r.json()).then(data => {
   window.addEventListener("hashchange", route);
   route();
 });
+
+// A link to another site opens in a new tab: the reader never loses their place here.
+document.addEventListener("click", e => {
+  const a = e.target.closest?.("a[href]");
+  if (a && a.origin !== location.origin && !a.target) { a.target = "_blank"; a.rel = "noopener"; }
+}, true);

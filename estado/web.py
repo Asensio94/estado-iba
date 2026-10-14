@@ -7,6 +7,7 @@ import shutil
 from datetime import date, datetime
 from email.utils import format_datetime
 from pathlib import Path
+from urllib.parse import quote
 from xml.sax.saxutils import escape
 
 from shapely.geometry import mapping, shape
@@ -122,7 +123,7 @@ def _feed(path: Path, name: str, route: str, about: str, signals: list[dict], wh
     for s in signals[:40]:
         when = datetime.fromisoformat(s["date"][:10] + "T08:00:00+00:00")
         extra = f" Plazo de alegaciones hasta el {s['deadline']}." if s["kind"] == "notice" and s["deadline"] else ""
-        items.append(f"<item><title>{escape(s['title'])}</title><link>{escape(s['url'])}</link>"
+        items.append(f"<item><title>{escape(s['title'])}</title><link>{config.PAGES}/estado-iba/#/a/{quote(s['source'], safe='')}/{quote(s['id'], safe='')}</link>"
                      f"<guid isPermaLink=\"false\">{escape(s['source'] + ':' + s['id'])}</guid>"
                      f"<pubDate>{format_datetime(when)}</pubDate>"
                      f"<description>{escape(where(s) + '.' + extra)}</description></item>")
