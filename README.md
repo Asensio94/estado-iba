@@ -155,10 +155,21 @@ Para cada anuncio se buscan las sociedades que lo mencionan en el Grafo de promo
 - Las aves de cada espacio son las del formulario oficial, que cada comunidad actualiza cuando puede: algunas listas son antiguas o incompletas, y la parte de la población española depende de los censos que se usaron.
 - La luz de noche llega con retraso: la NASA publica cada año en la primavera siguiente. Las bajadas no se avisan, porque pueden ser solo un cambio a LED. En los espacios marinos, parte de la luz es de barcos de pesca.
 
+### Salud de los proyectos hermanos
+
+Cada día a las 11:00 UTC, `salud.yml` revisa todos los proyectos hermanos, no solo los que lee el panel:
+
+1. Busca los workflows programados de cada repositorio. Avisa si su última ejecución falló o si GitHub los ha apagado. GitHub apaga los cron de un repositorio público tras 60 días sin actividad, y a los 45 ya sale un aviso.
+2. Valida el `signals.json` publicado contra el contrato: campos, fechas y tipos. Un tipo que el contrato no recoge es un problema, porque el panel lo descarta sin avisar.
+3. Comprueba que el `signals.json` no esté viejo según el ritmo de cada proyecto (`SIBLINGS` en `estado/config.py`).
+
+Si encuentra algo, abre el issue «Salud de los proyectos hermanos». Cuando cambia la lista de problemas, lo comenta, y así avisa a quien vigile el repositorio. Si la lista no cambia, actualiza el informe sin avisar. Cuando ya no hay nada, lo cierra.
+
 ## Pendiente
 
 - Cambiar las ZEPA por las IBA cuando SEO/BirdLife lo autorice. La capa original se guardará en privado y solo se publicará la geometría simplificada.
 - Que cada hermano publique su propio `signals.json` según [CONTRATO.md](CONTRATO.md).
+- Decidir qué hacer con los tipos que ya publican algunos hermanos y que el contrato no recoge: `water_status` (caudal-ecologico), `wastewater` y `bathing_water` (depuracion-y-bano).
 - Indicar qué IBA no tienen ninguna ZEPA (respuesta).
 
 ## Uso
@@ -168,6 +179,8 @@ pip install -r requirements.txt
 python -m pytest -q
 python -m estado.cli build            # --today AAAA-MM-DD para fijar la fecha
 python -m estado.cli check vigia-incendios signals.json   # un signals.json frente a su adaptador
+python -m estado.cli validate vigia-incendios signals.json  # un signals.json frente al contrato
+GITHUB_TOKEN=... python -m estado.cli health              # salud de todos los hermanos (--issue: actualiza el issue)
 python -m estado.cli luz              # serie de luz de noche; pide EARTHDATA_USERNAME y EARTHDATA_PASSWORD
 python -m estado.cli aves             # aves de cada espacio desde Natura 2000 (o: aves <zip ya descargado>)
 python -m http.server -d docs

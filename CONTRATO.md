@@ -62,13 +62,20 @@ Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `ht
 - Una señal sin un campo obligatorio, o de un tipo que no está en la lista, se descarta.
 - Los recuentos (`flood_building`) no tienen ventana: son un inventario, y su `date` es la fecha del dato de origen. Un recuento a cero no es una señal y se descarta.
 
-Antes de publicar el fichero por primera vez, desde estado-iba:
+El contrato también está escrito como JSON Schema en [`signals.schema.json`](signals.schema.json), para validarlo con cualquier herramienta. Si la tabla y el esquema no dicen lo mismo, falla un test de estado-iba.
+
+Para comprobar un fichero antes de publicarlo, desde estado-iba:
 
 ```bash
-python -m estado.cli check vigia-incendios ruta/a/signals.json
+python -m estado.cli validate vigia-incendios ruta/a/signals.json   # ¿cumple el contrato?
+python -m estado.cli check vigia-incendios ruta/a/signals.json      # ¿dice lo mismo que el adaptador?
 ```
 
-Compara el fichero con lo que el adaptador lee hoy de la web del proyecto y enumera las diferencias tal como las vería el panel.
+`validate` es estricto: un campo que no está en el contrato, una fecha mal escrita o un `kind` nuevo son errores. El panel, en cambio, lee con tolerancia: descarta la señal que no cumple y publica el resto. Por eso, si un proyecto necesita un tipo nuevo, primero se añade aquí, al esquema y a `adapters.KINDS`, y la web aprende a mostrarlo. Hasta entonces, el panel descarta esas señales.
+
+Cada día, `salud.yml` valida el `signals.json` publicado de cada hermano y lo cuenta en el issue «Salud de los proyectos hermanos».
+
+`check` compara el fichero con lo que el adaptador lee hoy de la web del proyecto y enumera las diferencias tal como las vería el panel.
 
 ## Tipos
 
@@ -83,6 +90,7 @@ Compara el fichero con lo que el adaptador lee hoy de la web del proyecto y enum
 | `power_line` | riesgo-tendidos-aves | Apoyos y vanos de riesgo alto dentro de un espacio. |
 | `migration` | sub-nocte | Migración nocturna prevista en una ciudad. |
 | `flood_building` | zona-inundable | Edificios construidos después de 2016 dentro de las zonas inundables del SNCZI (zona de flujo preferente, T100 y T500), uno por municipio (`precision: "municipio"`, sin `details.point`). `value` es ese número, en `edificios`; `details` lleva el recuento por zona (`zfp`, `t100`, `t500`), el total de edificios en zona inundable y el ritmo anual antes y después de 2016. `date` es la fecha del dato del Catastro. |
+| `night_light` | estado-iba (NASA Black Marble) | Luz artificial de noche de un espacio que ha subido más que la de los espacios que eran igual de oscuros (satélite VIIRS, píxeles de unos 500 m, `precision: "pixeles"`). `value` es esa subida de más, en `%`. No llega por `signals.json`: el hub la calcula con datos abiertos de la NASA. |
 
 ## Llaves comunes
 
