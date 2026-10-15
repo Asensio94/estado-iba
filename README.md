@@ -70,6 +70,7 @@ El seguimiento de las IBA de BirdLife distingue presión, estado y respuesta. Ca
 | Referencia | Aves de cada ZEPA: época del año y parte de la población española que acoge | [Natura 2000](https://doi.org/10.2909/d713bff7-0cdf-4f0d-acd1-dc3c63af237e), Agencia Europea de Medio Ambiente, CC BY 4.0 |
 | Estado | Migración nocturna prevista, por ciudad | [Sub Nocte](https://github.com/Asensio94/sub-nocte) |
 | Contexto | Edificios construidos después de 2016 en zona inundable, por municipio | [Zona inundable](https://github.com/Asensio94/zona-inundable) |
+| Presión | Depuradoras que no cumplen la directiva y zonas de baño insuficientes, por municipio | [Depuración y baño](https://github.com/Asensio94/depuracion-y-bano) |
 | Respuesta | Plazo de alegaciones abierto, con su fecha límite | Observatorio de alegaciones |
 | Contexto | Sociedad promotora → grupo → empresa cotizada | [Grafo de promotores](https://github.com/Asensio94/grafo-promotores) y [Cartera de las cotizadas](https://github.com/Asensio94/cartera-cotizadas) |
 
@@ -105,7 +106,7 @@ Cada ficha dice qué aves dieron valor al espacio, para que cada presión se lea
 
 ### Vigilado no es lo mismo que tranquilo
 
-Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los aerogeneradores y tendidos cubren Cantabria y el Estrecho. La luz de noche cubre los espacios de 4 píxeles o más. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris. Los edificios en zona inundable se cuentan por municipio y solo salen en la ficha de cada municipio.
+Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los aerogeneradores y tendidos cubren Cantabria y el Estrecho. La luz de noche cubre los espacios de 4 píxeles o más. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris. Los edificios en zona inundable se cuentan por municipio y solo salen en la ficha de cada municipio. Lo mismo pasa con las depuradoras y las zonas de baño: su punto es el núcleo urbano o la playa, no el vertido, y por eso no se cruzan con los espacios.
 
 ### Comunidades autónomas
 
@@ -169,7 +170,7 @@ Si encuentra algo, abre el issue «Salud de los proyectos hermanos». Cuando cam
 
 - Cambiar las ZEPA por las IBA cuando SEO/BirdLife lo autorice. La capa original se guardará en privado y solo se publicará la geometría simplificada.
 - Que cada hermano publique su propio `signals.json` según [CONTRATO.md](CONTRATO.md).
-- Decidir qué hacer con los tipos que ya publican algunos hermanos y que el contrato no recoge: `water_status` (caudal-ecologico), `wastewater` y `bathing_water` (depuracion-y-bano).
+- `water_status` (estado de las masas de agua, de caudal-ecologico) se queda fuera del contrato por ahora: son casi 3.000 puntos. Si entra, mejor como una cifra por espacio.
 - Indicar qué IBA no tienen ninguna ZEPA (respuesta).
 
 ## Uso
@@ -215,6 +216,7 @@ No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dorm
 - Migración: radares meteorológicos europeos, vía Sub Nocte.
 - Luz de noche: NASA Black Marble, VNP46A4 versión 2 ([doi:10.5067/VIIRS/VNP46A4.002](https://doi.org/10.5067/VIIRS/VNP46A4.002)), datos abiertos de la NASA.
 - Zonas inundables: SNCZI (MITECO) y Catastro, vía Zona inundable.
+- Depuración y zonas de baño: informe de España a la AEMA (Directiva 91/271/CEE) y Náyade, vía Depuración y baño.
 - Sociedades y grupos: BOE y BORME, vía el Grafo de promotores y la Cartera de las cotizadas.
 - Mapa: © colaboradores de OpenStreetMap.
 - Código con licencia MIT.

@@ -24,9 +24,10 @@ SOURCES = {
     "sub-nocte": ("Sub Nocte", "migración nocturna"),
     "zona-inundable": ("Zona inundable", "edificios construidos en zona inundable"),
     "black-marble": ("NASA Black Marble", "luz artificial de noche"),
+    "depuracion-y-bano": ("Depuración y baño", "depuradoras que no cumplen y zonas de baño insuficientes"),
 }
-# sub-nocte works per city and zona-inundable per municipality, not per site
-SITE_LEVEL = {k for k in SOURCES if k not in ("sub-nocte", "zona-inundable")}
+# sub-nocte works per city, zona-inundable and depuracion-y-bano per municipality: not per site
+SITE_LEVEL = {k for k in SOURCES if k not in ("sub-nocte", "zona-inundable", "depuracion-y-bano")}
 # Read here from open data rather than from a sibling: no signals.json to look for, and their own link.
 OWN = {"black-marble": config.LIGHT_PAGE}
 
@@ -77,6 +78,7 @@ def _adapters(p: dict, today: date) -> dict:
             json.loads(config.LIGHT_FILE.read_text(encoding="utf-8")), shapes, config.LIGHT_BASELINE,
             config.LIGHT_RECENT, config.LIGHT_MIN_RISE, config.LIGHT_MIN_ABS, config.LIGHT_MIN_PIXELS,
             config.LIGHT_PEERS),
+        "depuracion-y-bano": lambda: A.unpublished("Toda España"),  # signals.json only
     }
 
 

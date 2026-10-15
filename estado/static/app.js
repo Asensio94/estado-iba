@@ -20,6 +20,8 @@ const KIND = {
   migration: {tag: "Migración", theme: "Migración nocturna"},
   flood_building: {tag: "Inundable", theme: "Edificios en zona inundable"},
   night_light: {tag: "Luz", theme: "Luz artificial de noche"},
+  wastewater: {tag: "Depuración", theme: "Depuración y baño"},
+  bathing_water: {tag: "Baño", theme: "Depuración y baño"},
 };
 const PRECISION = {
   parcelas: "cruce por parcelas", municipio: "cruce por municipio", perimetro: "perímetro Sentinel-2",
@@ -33,6 +35,8 @@ const MEANS = {
   wetland_water: "Agua libre medida con Sentinel-2, comparada con la mediana del mismo mes en años anteriores.",
   flood_building: "Edificios del Catastro construidos después de 2016 dentro de las zonas inundables cartografiadas por el SNCZI (flujo preferente, 100 y 500 años). Es un recuento del municipio entero, no un hecho de un día: la fecha es la de los datos del Catastro.",
   night_light: "Brillo medio de noche de los píxeles del espacio en las imágenes anuales del satélite VIIRS (NASA Black Marble), de media en los dos últimos años frente a los tres primeros, y comparado con lo que cambiaron los espacios que eran igual de oscuros: el producto sube y baja de un año a otro en todo el país a la vez. El sensor apenas ve la luz azul de los LED blancos: una subida es real y, si acaso, se queda corta; una bajada puede ser solo el cambio de farolas, por eso no se avisa de las bajadas.",
+  wastewater: "Aglomeración urbana cuya depuración no cumple la directiva europea de aguas residuales según el último informe de España a la Agencia Europea de Medio Ambiente. Es un indicio: el punto es el núcleo urbano, no el vertido, y la fecha es la de la situación informada.",
+  bathing_water: "Zona de baño clasificada como insuficiente en la última temporada por la calidad microbiológica del agua. Las temporadas cuentan los años con esa misma clasificación.",
 };
 const PREC_NOTE = {
   municipio: "Este anuncio no trae parcelas: se ha cruzado el término municipal entero con el espacio, así que el proyecto puede quedar fuera.",
@@ -52,6 +56,7 @@ const LAYERS = [
   {id: "tendidos", name: "Aerogeneradores y tendidos de riesgo alto", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
   {id: "luz", name: "Luz de noche en aumento", color: "#e3b505", shape: "sun", source: "black-marble", kinds: ["night_light"]},
   {id: "migracion", name: "Migración esta noche", color: OUTLINE, stroke: "#fff", shape: "star", source: "sub-nocte", kinds: ["migration"]},
+  {id: "depuracion", name: "Depuración y baño", color: "#7a5230", shape: "drop", source: "depuracion-y-bano", kinds: ["wastewater", "bathing_water"]},
 ];
 // The light layer is the one pale fill: it sits outside the lightness band of the others, so it
 // leans on the dark outline every mark has, and on its own shape, a sun.
@@ -72,6 +77,7 @@ const SHAPE = {
   plus: `<path d="M7 2h6v5h5v6h-5v5H7v-5H2V7h5z"/>`,
   star: `<polygon points="${STAR}"/>`,
   sun: `<polygon points="${SUN}"/>`,
+  drop: `<path d="M10 1.5C7.5 5 3.5 9.3 3.5 12.5a6.5 6.5 0 0 0 13 0C16.5 9.3 12.5 5 10 1.5Z"/>`,
 };
 
 let D, M, SHAPES, REGIONS_GEO, capa, MAPS = [];
@@ -600,7 +606,7 @@ function signalItem(s, code) {
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
   if (s.kind === "night_light") extra.push(`${num(d.radiance, 2)} nW/cm²/sr frente a ${num(d.baseline, 2)}; como los igual de oscuros, ${num(d.expected, 2)} · píxeles VIIRS de unos 500 m`);
-  else if (PRECISION[s.precision] && !["wetland_water", "flood_building"].includes(s.kind)) extra.push(PRECISION[s.precision]);
+  else if (PRECISION[s.precision] && !["wetland_water", "flood_building", "wastewater", "bathing_water"].includes(s.kind)) extra.push(PRECISION[s.precision]);
   const fotos = d.before && d.after ? `<div class="fotos">
       <figure><img loading="lazy" src="${esc(d.before)}" alt="Antes"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
       <figure><img loading="lazy" src="${esc(d.after)}" alt="Después"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
