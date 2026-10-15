@@ -62,6 +62,20 @@ MIGRATION_URL = f"{PAGES}/sub-nocte/data/phase3_forecast.csv"
 # Pressure: power-line risk per pylon and span, only in the regions already modelled.
 LINES_URL = PAGES + "/riesgo-tendidos-aves/{region}/ranking_elements.csv"
 LINE_REGIONS = ["cantabria", "estrecho"]
+# Pressure: artificial light at night from NASA Black Marble (VNP46A4, yearly). No sibling reads it:
+# `python -m estado.cli luz` keeps the per-site series here once a month (Earthdata Login needed).
+LIGHT_FILE = DOCS_DIR / "datos" / "luz.json"
+LIGHT_PAGE = "https://blackmarble.gsfc.nasa.gov/"
+LIGHT_BASELINE = (2012, 2014)  # the first three years of VIIRS
+LIGHT_RECENT = 2  # years averaged as «now», so one odd year makes no signal
+LIGHT_MIN_RISE = 0.25  # share over the baseline
+LIGHT_MIN_ABS = 0.2  # nW·cm⁻²·sr⁻¹: near darkness a tiny change is a large share
+LIGHT_MIN_PIXELS = 4  # ~70 ha: one or two pixels are too noisy to read a trend
+LIGHT_PEERS = 25  # sites on each side in baseline brightness whose median change a site is held to
+
+# State of reference: the birds each ZEPA was designated for, from the official Natura 2000 forms.
+# `python -m estado.cli aves` writes them here once per yearly EEA release.
+BIRDS_FILE = DOCS_DIR / "datos" / "aves.json"
 
 FIRE_WINDOW_DAYS = 365
 WINDOWS = {"fire": FIRE_WINDOW_DAYS}  # whoever sends the fires, the panel shows a year of them

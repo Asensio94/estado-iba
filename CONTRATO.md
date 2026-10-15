@@ -38,7 +38,7 @@ Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `ht
 | Campo | Obligatorio | Qué es |
 |---|---|---|
 | `id` | sí | Identificador estable dentro del proyecto. El hub lo combina con `source`. |
-| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`, `flood_building`. |
+| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`, `flood_building`, `night_light`. |
 | `date` | sí | Fecha del hecho (`AAAA-MM-DD`): publicación, detección o medida. |
 | `title` | sí | Una línea legible, en español. |
 | `url` | sí | Enlace directo al registro: la web del proyecto con su ancla o la fuente oficial. |
@@ -90,6 +90,7 @@ Cada día, `salud.yml` valida el `signals.json` publicado de cada hermano y lo c
 | `power_line` | riesgo-tendidos-aves | Apoyos y vanos de riesgo alto dentro de un espacio. |
 | `migration` | sub-nocte | Migración nocturna prevista en una ciudad. |
 | `flood_building` | zona-inundable | Edificios construidos después de 2016 dentro de las zonas inundables del SNCZI (zona de flujo preferente, T100 y T500), uno por municipio (`precision: "municipio"`, sin `details.point`). `value` es ese número, en `edificios`; `details` lleva el recuento por zona (`zfp`, `t100`, `t500`), el total de edificios en zona inundable y el ritmo anual antes y después de 2016. `date` es la fecha del dato del Catastro. |
+| `night_light` | estado-iba (NASA Black Marble) | Luz artificial de noche de un espacio que ha subido más que la de los espacios que eran igual de oscuros (satélite VIIRS, píxeles de unos 500 m, `precision: "pixeles"`). `value` es esa subida de más, en `%`. No llega por `signals.json`: el hub la calcula con datos abiertos de la NASA. |
 
 ## Llaves comunes
 
