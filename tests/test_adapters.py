@@ -191,3 +191,13 @@ def test_published_keeps_flood_counts_by_municipality_and_drops_zeros():
 def test_unpublished_sibling_contributes_nothing():
     cov, out = A.unpublished("Toda España")
     assert out == [] and cov["sites"] == [] and cov["label"] == "Toda España"
+
+
+def test_published_wastewater_and_bathing_stay_in_their_municipality():
+    sig = lambda i, kind: {"id": i, "kind": kind, "date": "2024-06-30", "title": i, "url": "https://x",
+                           "municipalities": ["46250"], "precision": "punto", "status": "indicio",
+                           "value": {"amount": 1, "unit": "h-e"}, "details": {"point": [-0.37, 39.47]}}
+    doc = _doc([sig("W", "wastewater"), sig("B", "bathing_water")], source="depuracion-y-bano")
+    _, out = A.published(doc, "depuracion-y-bano", resolve, lambda lon, lat: pytest.fail("has a municipality"))
+    assert [(s["kind"], s["sites"], s["municipalities"]) for s in out] == [
+        ("wastewater", [], ["46250"]), ("bathing_water", [], ["46250"])]

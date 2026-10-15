@@ -43,7 +43,7 @@ def _munis(resolve: Resolve, names: list[str] | None, provinces: list[str] | Non
 
 
 KINDS = {"notice", "resolution", "fire", "land_change", "wetland_water", "river_flow", "power_line", "migration",
-         "flood_building"}
+         "flood_building", "wastewater", "bathing_water"}
 REQUIRED = ("id", "kind", "date", "title", "url", "precision")
 COUNTS = {"flood_building"}  # stock counts per place: a zero is «nothing to report», not a signal
 

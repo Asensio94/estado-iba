@@ -36,7 +36,7 @@
         "id": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "integer"}]},
         "kind": {
           "enum": ["notice", "resolution", "fire", "land_change", "wetland_water", "river_flow", "power_line",
-                   "migration", "flood_building"]
+                   "migration", "flood_building", "wastewater", "bathing_water"]
         },
         "date": {"$ref": "#/$defs/date"},
         "title": {"type": "string", "minLength": 1},

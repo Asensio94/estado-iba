@@ -23,9 +23,10 @@ SOURCES = {
     "riesgo-tendidos-aves": ("Riesgo de tendidos para aves", "tendidos peligrosos"),
     "sub-nocte": ("Sub Nocte", "migración nocturna"),
     "zona-inundable": ("Zona inundable", "edificios construidos en zona inundable"),
+    "depuracion-y-bano": ("Depuración y baño", "depuradoras que no cumplen y zonas de baño insuficientes"),
 }
-# sub-nocte works per city and zona-inundable per municipality, not per site
-SITE_LEVEL = {k for k in SOURCES if k not in ("sub-nocte", "zona-inundable")}
+# sub-nocte works per city, zona-inundable and depuracion-y-bano per municipality: not per site
+SITE_LEVEL = {k for k in SOURCES if k not in ("sub-nocte", "zona-inundable", "depuracion-y-bano")}
 
 
 def _try(name: str, fn, failed: list[str]):
@@ -70,6 +71,7 @@ def _adapters(p: dict, today: date) -> dict:
             {r: sources.get_csv_dated(config.LINES_URL.format(region=r)) for r in config.LINE_REGIONS}, shapes),
         "sub-nocte": lambda: A.subnocte(sources.get_csv(config.MIGRATION_URL), resolve, today),
         "zona-inundable": lambda: A.unpublished("Toda España"),  # signals.json only
+        "depuracion-y-bano": lambda: A.unpublished("Toda España"),  # signals.json only
     }
 
 

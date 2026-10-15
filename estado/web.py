@@ -147,6 +147,7 @@ def _params() -> str:
         ("Estación de aforo en una ZEPA", "a menos de unos 500 m del espacio"),
         ("Tendido de riesgo alto", "el 10 % de apoyos y vanos con más riesgo de cada región modelada"),
         ("Edificios en zona inundable", "construidos después de 2016 en las zonas de flujo preferente, T100 o T500 del SNCZI; solo en la ficha del municipio, sin ventana de tiempo"),
+        ("Depuración y baño", "aglomeraciones de más de 2.000 h-e que no cumplen la Directiva 91/271/CEE y zonas de baño insuficientes en la última temporada; solo en la ficha del municipio, sin ventana de tiempo"),
     ]
     body = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in rows)
     return f'<table class="params"><tbody>{body}</tbody></table>'
@@ -199,6 +200,7 @@ __FAVICON__
       <li><b>Quién está detrás.</b> El Grafo de promotores relaciona cada acto del BOE con las sociedades que aparecen en él y estas con su grupo, a partir del BORME. La Cartera de las cotizadas relaciona sociedades con empresas cotizadas por sus cuentas anuales. Cuando la cotizada se alcanza a través de otra sociedad del grupo, se indica.</li>
       <li><b>Fuego, suelo, agua, ríos y tendidos.</b> Vigía de incendios, Centinela Natura, Vigilancia de humedales, Caudal ecológico y Riesgo de tendidos para aves publican cada hecho con su lugar. Aquí se agrupan por espacio y municipio.</li>
       <li><b>Zona inundable.</b> Zona inundable cuenta, municipio a municipio, los edificios del Catastro construidos después de 2016 dentro de las zonas inundables del SNCZI. Es un inventario, no un hecho con fecha: sale solo en la ficha de cada municipio, sin mapa ni ventana de tiempo.</li>
+      <li><b>Depuración y baño.</b> Depuración y baño señala las aglomeraciones urbanas cuya depuración no cumple la directiva europea, según el último informe de España a la Agencia Europea de Medio Ambiente, y las zonas de baño insuficientes de la última temporada. Salen en la ficha de cada municipio, con una gota en el mapa. El punto es el núcleo urbano, no el vertido, así que no se cruza con los espacios.</li>
       <li><b>Municipios.</b> Los nombres de municipio que traen los anuncios se resuelven al código INE con la capa del IGN; los homónimos se desempatan por provincia y, si no, se dejan sin resolver.</li>
       <li>No hay un índice que lo resuma todo: mezclar hectáreas quemadas con proyectos exigiría decidir cuánto pesa cada cosa, y esa decisión no es técnica.</li>
     </ol>
@@ -219,7 +221,7 @@ __FAVICON__
 
 <footer class="site-footer">
   <p class="principle">Datos públicos, reglas a la vista y cada cifra enlazada a su fuente. Indicios, no veredictos.</p>
-  <p>Red Natura 2000: Agencia Europea de Medio Ambiente · Municipios: Instituto Geográfico Nacional (es-atlas) · Anuncios y resoluciones: Boletín Oficial del Estado · Sociedades: BORME y cuentas anuales · Focos y superficie quemada: NASA FIRMS y Copernicus Sentinel-2 · Cambio de uso y agua: Copernicus Sentinel-2 · Caudales: SAIH del Júcar y SIRA del Guadiana · Tendidos: OpenStreetMap · Migración: radares meteorológicos europeos · Zonas inundables: SNCZI (MITECO) y Catastro · Mapa: © colaboradores de OpenStreetMap · Código con licencia MIT.</p>
+  <p>Red Natura 2000: Agencia Europea de Medio Ambiente · Municipios: Instituto Geográfico Nacional (es-atlas) · Anuncios y resoluciones: Boletín Oficial del Estado · Sociedades: BORME y cuentas anuales · Focos y superficie quemada: NASA FIRMS y Copernicus Sentinel-2 · Cambio de uso y agua: Copernicus Sentinel-2 · Caudales: SAIH del Júcar y SIRA del Guadiana · Tendidos: OpenStreetMap · Migración: radares meteorológicos europeos · Zonas inundables: SNCZI (MITECO) y Catastro · Depuración: informe de España a la AEMA (Directiva 91/271/CEE) · Zonas de baño: Náyade · Mapa: © colaboradores de OpenStreetMap · Código con licencia MIT.</p>
   <nav aria-label="Proyectos hermanos"><ul class="siblings">
     <li><a href="https://asensio94.github.io/observatorio-alegaciones/">Observatorio de alegaciones</a></li>
     <li><a href="https://asensio94.github.io/vigia-incendios/">Vigía de incendios</a></li>

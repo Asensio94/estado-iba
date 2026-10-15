@@ -19,6 +19,8 @@ const KIND = {
   power_line: {tag: "Tendido", theme: "Tendidos eléctricos"},
   migration: {tag: "Migración", theme: "Migración nocturna"},
   flood_building: {tag: "Inundable", theme: "Edificios en zona inundable"},
+  wastewater: {tag: "Depuración", theme: "Depuración y baño"},
+  bathing_water: {tag: "Baño", theme: "Depuración y baño"},
 };
 const PRECISION = {
   parcelas: "cruce por parcelas", municipio: "cruce por municipio", perimetro: "perímetro Sentinel-2",
@@ -31,6 +33,8 @@ const MEANS = {
   land_change: "Centinela compara la vegetación con imágenes de Sentinel-2. Una alerta no es una infracción: puede ser una obra autorizada, una corta o un cambio de cultivo. Se indica si se encontró expediente.",
   wetland_water: "Agua libre medida con Sentinel-2, comparada con la mediana del mismo mes en años anteriores.",
   flood_building: "Edificios del Catastro construidos después de 2016 dentro de las zonas inundables cartografiadas por el SNCZI (flujo preferente, 100 y 500 años). Es un recuento del municipio entero, no un hecho de un día: la fecha es la de los datos del Catastro.",
+  wastewater: "Aglomeración urbana cuya depuración no cumple la directiva europea de aguas residuales según el último informe de España a la Agencia Europea de Medio Ambiente. Es un indicio: el punto es el núcleo urbano, no el vertido, y la fecha es la de la situación informada.",
+  bathing_water: "Zona de baño clasificada como insuficiente en la última temporada por la calidad microbiológica del agua. Las temporadas cuentan los años con esa misma clasificación.",
 };
 const PREC_NOTE = {
   municipio: "Este anuncio no trae parcelas: se ha cruzado el término municipal entero con el espacio, así que el proyecto puede quedar fuera.",
@@ -49,6 +53,7 @@ const LAYERS = [
   {id: "rios", name: "Caudal de los ríos", color: "#2a78d6", shape: "ring", source: "caudal-ecologico", kinds: ["river_flow"]},
   {id: "tendidos", name: "Tendidos de riesgo alto", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
   {id: "migracion", name: "Migración esta noche", color: OUTLINE, stroke: "#fff", shape: "star", source: "sub-nocte", kinds: ["migration"]},
+  {id: "depuracion", name: "Depuración y baño", color: "#7a5230", shape: "drop", source: "depuracion-y-bano", kinds: ["wastewater", "bathing_water"]},
 ];
 const STAR = Array.from({length: 10}, (_, i) => {
   const a = (-90 + i * 36) * Math.PI / 180, r = i % 2 ? 3.9 : 9.2;
@@ -62,6 +67,7 @@ const SHAPE = {
   ring: `<circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="3.2" fill="#fff"/>`,
   plus: `<path d="M7 2h6v5h5v6h-5v5H7v-5H2V7h5z"/>`,
   star: `<polygon points="${STAR}"/>`,
+  drop: `<path d="M10 1.5C7.5 5 3.5 9.3 3.5 12.5a6.5 6.5 0 0 0 13 0C16.5 9.3 12.5 5 10 1.5Z"/>`,
 };
 
 let D, M, SHAPES, REGIONS_GEO, capa, MAPS = [];
@@ -586,7 +592,7 @@ function signalItem(s, code) {
   if (s.status && s.kind !== "notice") extra.push(esc(s.status));
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
-  if (PRECISION[s.precision] && !["wetland_water", "flood_building"].includes(s.kind)) extra.push(PRECISION[s.precision]);
+  if (PRECISION[s.precision] && !["wetland_water", "flood_building", "wastewater", "bathing_water"].includes(s.kind)) extra.push(PRECISION[s.precision]);
   const fotos = d.before && d.after ? `<div class="fotos">
       <figure><img loading="lazy" src="${esc(d.before)}" alt="Antes"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
       <figure><img loading="lazy" src="${esc(d.after)}" alt="Después"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
