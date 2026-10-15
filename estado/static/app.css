@@ -162,3 +162,14 @@ a.fuera::after{content:" ↗"}
 
 /* Away from home: the place is the page, the national lede and figures stay on the home page. */
 .en-lugar .site-header .lede, .en-lugar .site-header .aviso-unidad, .en-lugar .site-header .figures { display: none; }
+
+/* Birds of a site */
+section.aves{margin:28px 0}
+.aves-grado{font:600 14px/1.2 var(--font-title);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 6px;display:inline}
+.aves details{margin:16px 0 0}
+.aves details summary{cursor:pointer}
+.aves > .aves-grado{display:block}
+.aves-lista{list-style:none;margin:6px 0 0;padding:0;columns:2 260px;column-gap:24px}
+.aves-lista li{break-inside:avoid;padding:3px 0;border-bottom:1px solid var(--line);font-size:15px;line-height:1.35}
+.aves-lista i.meta{font-style:italic}
+.aves .fuente{margin:14px 0 0}

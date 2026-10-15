@@ -10,7 +10,7 @@ from datetime import date, datetime, timezone
 from functools import partial
 from pathlib import Path
 
-from . import adapters as A, config, indicators as I, luz, places, sources, web
+from . import adapters as A, aves, config, indicators as I, luz, places, sources, web
 
 # Name, link and what each source watches, as the site card says it.
 SOURCES = {
@@ -188,10 +188,18 @@ def light(today: date | None = None) -> None:
           f"{doc['years'][-1] if doc['years'] else '—'} · actualizado {doc['updated']}")
 
 
+def birds(source: str | None, today: date | None = None) -> None:
+    """Write the birds each site was designated for (downloads the Natura 2000 release; see aves.py)."""
+    sites = I.load_sites(sources.get_json(config.SITES_URL), config.SITE_KIND)
+    got = aves.update(sites, config.BIRDS_FILE, source, today)
+    print(f"{got['sites']} de {len(sites)} espacios con aves · {got['species']} especies"
+          + (f" · sin nombre en castellano: {', '.join(got['unnamed'])}" if got["unnamed"] else ""))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="estado")
-    ap.add_argument("command", choices=["build", "check", "luz"])
-    ap.add_argument("source", nargs="?", help="check: the sibling, as in SOURCES")
+    ap.add_argument("command", choices=["build", "check", "luz", "aves"])
+    ap.add_argument("source", nargs="?", help="check: the sibling, as in SOURCES; aves: the release zip, if already downloaded")
     ap.add_argument("signals", nargs="?", help="check: its signals.json, a path or a URL")
     ap.add_argument("--today", type=date.fromisoformat, default=None)
     args = ap.parse_args()
@@ -199,6 +207,8 @@ def main() -> None:
         build(args.today)
     elif args.command == "luz":
         light(args.today)
+    elif args.command == "aves":
+        birds(args.source, args.today)
     elif not (args.source in SOURCES and args.signals):
         ap.error("check needs a source and its signals.json")
     else:

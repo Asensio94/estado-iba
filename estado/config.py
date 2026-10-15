@@ -51,6 +51,10 @@ LIGHT_MIN_ABS = 0.2  # nW·cm⁻²·sr⁻¹: near darkness a tiny change is a la
 LIGHT_MIN_PIXELS = 4  # ~70 ha: one or two pixels are too noisy to read a trend
 LIGHT_PEERS = 25  # sites on each side in baseline brightness whose median change a site is held to
 
+# State of reference: the birds each ZEPA was designated for, from the official Natura 2000 forms.
+# `python -m estado.cli aves` writes them here once per yearly EEA release.
+BIRDS_FILE = DOCS_DIR / "datos" / "aves.json"
+
 FIRE_WINDOW_DAYS = 365
 WINDOWS = {"fire": FIRE_WINDOW_DAYS}  # whoever sends the fires, the panel shows a year of them
 LAND_STATES = {"confirmada", "provisional"}  # descartada, revertida and fusionada are not pressure

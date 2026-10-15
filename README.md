@@ -65,6 +65,7 @@ El seguimiento de las IBA de BirdLife distingue presión, estado y respuesta. Ca
 | Presión | Subida de la luz artificial de noche frente a 2012-2014 | [NASA Black Marble](https://blackmarble.gsfc.nasa.gov/), calculada aquí cada mes |
 | Estado | Agua libre frente a la mediana del mismo mes en años anteriores | [Vigilancia de humedales](https://github.com/Asensio94/vigilancia-humedales) |
 | Estado | Días por debajo del caudal ecológico mínimo en los últimos 30 días | [Caudal ecológico](https://github.com/Asensio94/caudal-ecologico) |
+| Referencia | Aves de cada ZEPA: época del año y parte de la población española que acoge | [Natura 2000](https://doi.org/10.2909/d713bff7-0cdf-4f0d-acd1-dc3c63af237e), Agencia Europea de Medio Ambiente, CC BY 4.0 |
 | Estado | Migración nocturna prevista, por ciudad | [Sub Nocte](https://github.com/Asensio94/sub-nocte) |
 | Respuesta | Plazo de alegaciones abierto, con su fecha límite | Observatorio de alegaciones |
 | Contexto | Sociedad promotora → grupo → empresa cotizada | [Grafo de promotores](https://github.com/Asensio94/grafo-promotores) y [Cartera de las cotizadas](https://github.com/Asensio94/cartera-cotizadas) |
@@ -88,6 +89,16 @@ La luz artificial desorienta a las aves que migran de noche y a los pollos de pa
 - **Deriva.** El producto sube y baja de un año a otro en todo el país a la vez, y más cuanto más oscuro es el sitio. En 2025, la mediana de los espacios con 0,02-0,2 nW/cm²/sr casi duplica su brillo de 2012-2014; los muy iluminados, en cambio, bajan. Comparar cada espacio solo consigo mismo daría avisos en media España.
 - **Señal.** Se compara la media de los dos últimos años con la de 2012-2014, y con lo que cambiaron los 50 espacios que más se le parecían en brillo entonces (25 por cada lado). Hay señal si el espacio queda al menos un 25 % y al menos 0,2 nW/cm²/sr por encima de lo que tendría si hubiera cambiado como la mediana de esos 50. Cerca de la oscuridad, un cambio pequeño es un porcentaje enorme. No se juzgan los espacios de menos de 4 píxeles ni los que no tenían ninguna luz en 2012-2014, porque no hay porcentaje de nada.
 - **LED.** El sensor apenas ve la luz azul de los LED blancos. Cuando un pueblo cambia sus farolas de sodio por LED, el satélite lo ve más oscuro aunque no lo esté. Por eso solo se avisa de las subidas, que son reales y, si acaso, se quedan cortas.
+
+### Aves de cada espacio
+
+Cada ficha dice qué aves dieron valor al espacio, para que cada presión se lea sabiendo qué hay en juego.
+
+- **Dato.** La tabla SPECIES de la base de datos de Natura 2000 (final de 2024, revisión 1), que la Agencia Europea de Medio Ambiente publica cada año con licencia CC BY 4.0. Recoge el formulario oficial de cada espacio tal como lo envió el Estado.
+- **Qué se muestra.** Para cada especie, la época en que está (todo el año, cría, inverna o en paso) y qué parte de las que hay en España acoge el espacio: más del 15 % (A), entre el 2 y el 15 % (B) o menos del 2 % (C). Una especie en varias filas, por ejemplo cría e inverna, toma la mejor. Algunos formularios dejan la parte en blanco pero valoran el espacio para la especie: salen aparte, «sin porcentaje». Otros, sobre todo en Canarias, solo nombran las especies sin evaluar nada: salen al final, «sin evaluar». Las de población poco significativa (D) solo se cuentan.
+- **Qué no se muestra.** Ni el número de parejas o ejemplares del formulario ni ninguna ubicación dentro del espacio. Las filas que el Estado marca como sensibles no se publican (la base pública ya retira la mayoría), ni las de especies que el formulario da por desaparecidas.
+- **Nombres.** `estado/aves_es.tsv` da el nombre en castellano de cada código de especie de la Directiva Aves: 181 del Atlas de las aves reproductoras del MITECO, 58 del Listado de especies silvestres en régimen de protección especial (Real Decreto 139/2011) y 28 puestos a mano para especies que no crían en España o que han cambiado de nombre científico.
+- `python -m estado.cli aves` descarga la base (unos 30 MB) y escribe `docs/datos/aves.json`. Se ejecuta a mano cuando sale una versión nueva, cambiando antes `ZIP_URL` y `VERSION` en `estado/aves.py`.
 
 ### Vigilado no es lo mismo que tranquilo
 
@@ -138,6 +149,7 @@ Para cada anuncio se buscan las sociedades que lo mencionan en el Grafo de promo
 - Con la geometría simplificada a unos 300 m, un espacio puede ganar o perder franjas finas. Eso afecta poco a los cruces, porque cada proyecto los hace ya con su geometría completa. Sí afecta a las estaciones de aforo y a los tendidos, que se sitúan aquí.
 - Un proyecto en evaluación no es un daño: es un procedimiento abierto, que puede acabar denegado.
 - La cadena de propiedad es tan buena como el Grafo y la Cartera: un promotor no identificado no significa que no lo haya.
+- Las aves de cada espacio son las del formulario oficial, que cada comunidad actualiza cuando puede: algunas listas son antiguas o incompletas, y la parte de la población española depende de los censos que se usaron.
 - La luz de noche llega con retraso: la NASA publica cada año en la primavera siguiente. Las bajadas no se avisan, porque pueden ser solo un cambio a LED. En los espacios marinos, parte de la luz es de barcos de pesca.
 
 ## Pendiente
@@ -154,6 +166,7 @@ python -m pytest -q
 python -m estado.cli build            # --today AAAA-MM-DD para fijar la fecha
 python -m estado.cli check vigia-incendios signals.json   # un signals.json frente a su adaptador
 python -m estado.cli luz              # serie de luz de noche; pide EARTHDATA_USERNAME y EARTHDATA_PASSWORD
+python -m estado.cli aves             # aves de cada espacio desde Natura 2000 (o: aves <zip ya descargado>)
 python -m http.server -d docs
 ```
 
@@ -167,6 +180,7 @@ Solo `docs/`:
 - `datos/hub.json`, con espacios, señales y cadenas.
 - `datos/municipios.json`, con el nombre, la provincia, la comunidad y los espacios de cada municipio.
 - `datos/luz.json`, con el brillo medio de noche de cada espacio año a año, su número de píxeles y los ficheros de la NASA de los que sale.
+- `datos/aves.json`, con las aves de cada espacio: código de especie, épocas y parte de la población española, sin cifras.
 - `sitios.geojson` y `comunidades.geojson`, con los límites simplificados.
 - Un canal RSS por espacio y otro por comunidad.
 
