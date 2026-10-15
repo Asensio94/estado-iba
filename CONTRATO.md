@@ -1,6 +1,6 @@
 # Contrato de señales
 
-Estado de las IBA reúne lo que publican los proyectos hermanos. Para no depender del formato interno de cada uno, todo se traduce a **señales**: cada señal es un hecho con fecha, lugar y enlace a su registro original. Una señal puede ser un anuncio del BOE, un incendio, una alerta de cambio de uso, una medida de agua o caudal, o un tendido peligroso.
+Estado de las IBA reúne lo que publican los proyectos hermanos. Para no depender del formato interno de cada uno, todo se traduce a **señales**: cada señal es un hecho con fecha, lugar y enlace a su registro original. Una señal puede ser un anuncio del BOE, un incendio, una alerta de cambio de uso, una medida de agua o caudal, un tendido peligroso o el recuento de edificios nuevos en zona inundable de un municipio.
 
 Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `https://asensio94.github.io/<proyecto>/signals.json`. Estado de las IBA lo busca en cada actualización. Mientras un proyecto no lo publique, o si el fichero no se puede leer, el hub traduce sus ficheros internos como hasta ahora (`estado/adapters.py`).
 
@@ -38,7 +38,7 @@ Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `ht
 | Campo | Obligatorio | Qué es |
 |---|---|---|
 | `id` | sí | Identificador estable dentro del proyecto. El hub lo combina con `source`. |
-| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`, `night_light`. |
+| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`, `flood_building`, `night_light`. |
 | `date` | sí | Fecha del hecho (`AAAA-MM-DD`): publicación, detección o medida. |
 | `title` | sí | Una línea legible, en español. |
 | `url` | sí | Enlace directo al registro: la web del proyecto con su ancla o la fuente oficial. |
@@ -60,6 +60,7 @@ Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `ht
 - El hub aplica sus propias ventanas de tiempo, sea quien sea quien envíe la señal: los incendios, 365 días.
 - El `id` es estable entre ejecuciones, para que los enlaces y los RSS no cambien.
 - Una señal sin un campo obligatorio, o de un tipo que no está en la lista, se descarta.
+- Los recuentos (`flood_building`) no tienen ventana: son un inventario, y su `date` es la fecha del dato de origen. Un recuento a cero no es una señal y se descarta.
 
 Antes de publicar el fichero por primera vez, desde estado-iba:
 
@@ -68,6 +69,20 @@ python -m estado.cli check vigia-incendios ruta/a/signals.json
 ```
 
 Compara el fichero con lo que el adaptador lee hoy de la web del proyecto y enumera las diferencias tal como las vería el panel.
+
+## Tipos
+
+| `kind` | Proyecto | Qué cuenta |
+|---|---|---|
+| `notice` | observatorio-alegaciones | Anuncio del BOE con trámite ambiental en información pública. |
+| `resolution` | observatorio-alegaciones | Resolución que cierra el procedimiento de un anuncio. |
+| `fire` | vigia-incendios | Incendio visto por satélite, con hectáreas por espacio. |
+| `land_change` | centinela-natura | Alerta de cambio de cubierta vegetal. |
+| `wetland_water` | vigilancia-humedales | Agua libre de un humedal frente a su referencia mensual. |
+| `river_flow` | caudal-ecologico | Días bajo el caudal ecológico mínimo en una estación de aforo. |
+| `power_line` | riesgo-tendidos-aves | Apoyos y vanos de riesgo alto dentro de un espacio. |
+| `migration` | sub-nocte | Migración nocturna prevista en una ciudad. |
+| `flood_building` | zona-inundable | Edificios construidos después de 2016 dentro de las zonas inundables del SNCZI (zona de flujo preferente, T100 y T500), uno por municipio (`precision: "municipio"`, sin `details.point`). `value` es ese número, en `edificios`; `details` lleva el recuento por zona (`zfp`, `t100`, `t500`), el total de edificios en zona inundable y el ritmo anual antes y después de 2016. `date` es la fecha del dato del Catastro. |
 
 ## Llaves comunes
 

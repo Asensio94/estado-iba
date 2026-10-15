@@ -155,6 +155,7 @@ def _params() -> str:
          f"desde {config.LIGHT_BASELINE[0]}-{config.LIGHT_BASELINE[1]} como la mediana de los "
          f"{2 * config.LIGHT_PEERS} espacios más parecidos en brillo de entonces; solo espacios de "
          f"{config.LIGHT_MIN_PIXELS} píxeles VIIRS o más (unos 500 m cada uno)"),
+        ("Edificios en zona inundable", "construidos después de 2016 en las zonas de flujo preferente, T100 o T500 del SNCZI; solo en la ficha del municipio, sin ventana de tiempo"),
     ]
     body = "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in rows)
     return f'<table class="params"><tbody>{body}</tbody></table>'
@@ -206,6 +207,7 @@ __FAVICON__
       <li><b>Proyectos.</b> El Observatorio de alegaciones lee el BOE cada mañana. Si el anuncio trae las parcelas afectadas, el cruce con los espacios es con esas parcelas; si no, con el término municipal entero, que es solo una aproximación y se marca «por municipio».</li>
       <li><b>Quién está detrás.</b> El Grafo de promotores relaciona cada acto del BOE con las sociedades que aparecen en él y estas con su grupo, a partir del BORME. La Cartera de las cotizadas relaciona sociedades con empresas cotizadas por sus cuentas anuales. Cuando la cotizada se alcanza a través de otra sociedad del grupo, se indica.</li>
       <li><b>Fuego, suelo, agua, ríos, aerogeneradores y tendidos.</b> Vigía de incendios, Centinela Natura, Vigilancia de humedales, Caudal ecológico y Riesgo de tendidos para aves publican cada hecho con su lugar. Aquí se agrupan por espacio y municipio.</li>
+      <li><b>Zona inundable.</b> Zona inundable cuenta, municipio a municipio, los edificios del Catastro construidos después de 2016 dentro de las zonas inundables del SNCZI. Es un inventario, no un hecho con fecha: sale solo en la ficha de cada municipio, sin mapa ni ventana de tiempo.</li>
       <li><b>Luz de noche.</b> Una vez al mes se descargan de la NASA las imágenes anuales de Black Marble (satélite VIIRS, píxeles de unos 500 m) y se calcula el brillo medio de cada espacio año a año. Como el producto sube y baja de un año a otro en todo el país a la vez, cada espacio se compara con los que eran igual de oscuros en 2012-2014. Solo se avisa de las subidas: el sensor apenas ve la luz azul de los LED blancos, así que una bajada puede ser solo el cambio de farolas y una subida, si acaso, se queda corta. En los espacios marinos, parte de la luz es de barcos.</li>
       <li><b>Aves de cada espacio.</b> Son las del formulario oficial de cada ZEPA en la base de datos de Natura 2000 que publica la Agencia Europea de Medio Ambiente una vez al año. Para cada especie se dice en qué época está (todo el año, cría, inverna o en paso) y qué parte de las que hay en España acoge el espacio: más del 15 %, entre el 2 y el 15 % o menos del 2 %. Las de población poco significativa solo se cuentan. Los nombres en castellano son los del MITECO.</li>
       <li><b>Municipios.</b> Los nombres de municipio que traen los anuncios se resuelven al código INE con la capa del IGN; los homónimos se desempatan por provincia y, si no, se dejan sin resolver.</li>
@@ -228,7 +230,7 @@ __FAVICON__
 
 <footer class="site-footer">
   <p class="principle">Datos públicos, reglas a la vista y cada cifra enlazada a su fuente. Indicios, no veredictos.</p>
-  <p>Red Natura 2000 y aves de cada espacio: Agencia Europea de Medio Ambiente (CC BY 4.0) · Nombres de aves: MITECO · Municipios: Instituto Geográfico Nacional (es-atlas) · Anuncios y resoluciones: Boletín Oficial del Estado · Sociedades: BORME y cuentas anuales · Focos y superficie quemada: NASA FIRMS y Copernicus Sentinel-2 · Cambio de uso y agua: Copernicus Sentinel-2 · Caudales: SAIH del Júcar y SIRA del Guadiana · Aerogeneradores y tendidos: OpenStreetMap · Luz de noche: NASA Black Marble (VIIRS) · Migración: radares meteorológicos europeos · Mapa: © colaboradores de OpenStreetMap · Código con licencia MIT.</p>
+  <p>Red Natura 2000 y aves de cada espacio: Agencia Europea de Medio Ambiente (CC BY 4.0) · Nombres de aves: MITECO · Municipios: Instituto Geográfico Nacional (es-atlas) · Anuncios y resoluciones: Boletín Oficial del Estado · Sociedades: BORME y cuentas anuales · Focos y superficie quemada: NASA FIRMS y Copernicus Sentinel-2 · Cambio de uso y agua: Copernicus Sentinel-2 · Caudales: SAIH del Júcar y SIRA del Guadiana · Aerogeneradores y tendidos: OpenStreetMap · Luz de noche: NASA Black Marble (VIIRS) · Migración: radares meteorológicos europeos · Zonas inundables: SNCZI (MITECO) y Catastro · Mapa: © colaboradores de OpenStreetMap · Código con licencia MIT.</p>
   <nav aria-label="Proyectos hermanos"><ul class="siblings">
     <li><a href="https://asensio94.github.io/observatorio-alegaciones/">Observatorio de alegaciones</a></li>
     <li><a href="https://asensio94.github.io/vigia-incendios/">Vigía de incendios</a></li>

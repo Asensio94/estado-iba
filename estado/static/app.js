@@ -18,6 +18,7 @@ const KIND = {
   river_flow: {tag: "Río", theme: "Caudal de los ríos"},
   power_line: {tag: "Infraestructura", theme: "Aerogeneradores y tendidos eléctricos"},
   migration: {tag: "Migración", theme: "Migración nocturna"},
+  flood_building: {tag: "Inundable", theme: "Edificios en zona inundable"},
   night_light: {tag: "Luz", theme: "Luz artificial de noche"},
 };
 const PRECISION = {
@@ -30,6 +31,7 @@ const MEANS = {
   fire: "Incendio visto por satélite. Si ya hay perímetro de Sentinel-2, las hectáreas son las quemadas dentro del espacio; si no, la extensión de los píxeles con focos, que exagera los incendios pequeños.",
   land_change: "Centinela compara la vegetación con imágenes de Sentinel-2. Una alerta no es una infracción: puede ser una obra autorizada, una corta o un cambio de cultivo. Se indica si se encontró expediente.",
   wetland_water: "Agua libre medida con Sentinel-2, comparada con la mediana del mismo mes en años anteriores.",
+  flood_building: "Edificios del Catastro construidos después de 2016 dentro de las zonas inundables cartografiadas por el SNCZI (flujo preferente, 100 y 500 años). Es un recuento del municipio entero, no un hecho de un día: la fecha es la de los datos del Catastro.",
   night_light: "Brillo medio de noche de los píxeles del espacio en las imágenes anuales del satélite VIIRS (NASA Black Marble), de media en los dos últimos años frente a los tres primeros, y comparado con lo que cambiaron los espacios que eran igual de oscuros: el producto sube y baja de un año a otro en todo el país a la vez. El sensor apenas ve la luz azul de los LED blancos: una subida es real y, si acaso, se queda corta; una bajada puede ser solo el cambio de farolas, por eso no se avisa de las bajadas.",
 };
 const PREC_NOTE = {
@@ -598,11 +600,11 @@ function signalItem(s, code) {
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
   if (s.kind === "night_light") extra.push(`${num(d.radiance, 2)} nW/cm²/sr frente a ${num(d.baseline, 2)}; como los igual de oscuros, ${num(d.expected, 2)} · píxeles VIIRS de unos 500 m`);
-  else if (PRECISION[s.precision] && s.kind !== "wetland_water") extra.push(PRECISION[s.precision]);
+  else if (PRECISION[s.precision] && !["wetland_water", "flood_building"].includes(s.kind)) extra.push(PRECISION[s.precision]);
   const fotos = d.before && d.after ? `<div class="fotos">
       <figure><img loading="lazy" src="${esc(d.before)}" alt="Antes"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
       <figure><img loading="lazy" src="${esc(d.after)}" alt="Después"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
-  const means = MEANS[s.kind] ? `<details class="significa"><summary>¿Qué significa?</summary><p>${esc(MEANS[s.kind])}${s.precision === "municipio" ? " " + esc(PREC_NOTE.municipio) : ""}</p></details>` : "";
+  const means = MEANS[s.kind] ? `<details class="significa"><summary>¿Qué significa?</summary><p>${esc(MEANS[s.kind])}${s.precision === "municipio" && s.kind !== "flood_building" ? " " + esc(PREC_NOTE.municipio) : ""}</p></details>` : "";
   return `<li class="item ${isOpen(s) ? "urgente" : ""}">
     <div class="t">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${fecha(s.date)}${code ? siteHa(s, code) : ""}${value(s)} · ${extra.join(" · ")}</div>${fotos}${means}</li>`;

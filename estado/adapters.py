@@ -45,8 +45,9 @@ def _munis(resolve: Resolve, names: list[str] | None, provinces: list[str] | Non
 
 
 KINDS = {"notice", "resolution", "fire", "land_change", "wetland_water", "river_flow", "power_line", "migration",
-         "night_light"}
+         "flood_building", "night_light"}
 REQUIRED = ("id", "kind", "date", "title", "url", "precision")
+COUNTS = {"flood_building"}  # stock counts per place: a zero is «nothing to report», not a signal
 
 
 def published(doc: dict, source: str, resolve: Resolve, locate: Callable) -> tuple[dict, list[dict]]:
@@ -62,6 +63,8 @@ def published(doc: dict, source: str, resolve: Resolve, locate: Callable) -> tup
     for s in doc["signals"]:
         if not all(s.get(k) for k in REQUIRED) or s["kind"] not in KINDS:
             dropped += 1
+            continue
+        if s["kind"] in COUNTS and not (s.get("value") or {}).get("amount"):
             continue
         details = s.get("details") or {}
         if "promoter" in details:  # whoever sends it
@@ -80,6 +83,11 @@ def published(doc: dict, source: str, resolve: Resolve, locate: Callable) -> tup
         print(f"[{source}] signals.json: {dropped} señales incompletas descartadas", file=sys.stderr)
     cov = doc["coverage"]
     return {"label": cov["label"], "sites": cov.get("sites"), "note": cov.get("note", "")}, out
+
+
+def unpublished(label: str) -> tuple[dict, list[dict]]:
+    """A sibling read only through its signals.json: until it publishes one, it contributes nothing."""
+    return {"label": label, "sites": [], "note": "Aún no publica sus señales."}, []
 
 
 def observatorio(state: dict, resolve: Resolve) -> tuple[dict, list[dict]]:
