@@ -633,6 +633,7 @@ function siteView(code) {
           <p>${open.length === 1 ? "Un proyecto que toca este espacio admite alegaciones" : `${open.length} proyectos que tocan este espacio admiten alegaciones`}. Cualquier persona o entidad puede presentarlas.</p>
           <ul class="lista">${open.map(x => plazoItem(x, code)).join("")}</ul></div>` : ""}
         <section class="cronologia"><h2 class="sec">Qué ha pasado</h2>${timeline(list, code)}</section>
+        <section class="aves" id="aves-panel" hidden></section>
       </div>
       <aside>
         ${hilo(list)}
@@ -645,6 +646,44 @@ function siteView(code) {
   window.scrollTo(0, 0);
   mapaTodo($("#mapa-host"), scopeSite(s), `Mapa de ${s.name}`);
   luzPanel(code);
+  avesPanel(code, s.name);
+}
+
+/* Birds: the species the site was designated for, from its Natura 2000 form, read only when a site is opened. */
+let AVES;
+const SEASON = {p: "todo el año", r: "cría", w: "inverna", c: "en paso"};
+const GRADE = {A: "Más del 15 % de las de España", B: "Entre el 2 y el 15 %", C: "Menos del 2 %",
+  X: "Importantes aquí, sin porcentaje en el formulario", N: "Presentes, sin evaluar en el formulario"};
+async function avesPanel(code, name) {
+  const host = $("#aves-panel");
+  if (!host) return;
+  try { AVES ||= await fetch("datos/aves.json").then(r => r.json()); } catch { return; }
+  const x = AVES.sites[code];
+  if (!x || !host.isConnected) return;
+  const sdf = `https://natura2000.eea.europa.eu/Natura2000/SDF.aspx?site=${encodeURIComponent(code)}`;
+  const item = ([sp, seasons]) => {
+    const [sci, es] = AVES.species[sp];
+    return `<li><span class="ave">${esc(es)}</span>${es !== sci ? ` <i class="meta">${esc(sci)}</i>` : ""}
+      <span class="meta">· ${[...seasons].map(k => SEASON[k]).join(", ") || "época sin indicar"}</span></li>`;
+  };
+  const groups = Object.keys(GRADE).map(g => [g, x.birds.filter(b => b[2] === g)]).filter(([, l]) => l.length);
+  const block = ([g, l]) => {
+    const head = `${GRADE[g]} <span class="meta">· ${l.length} ${l.length === 1 ? "especie" : "especies"}</span>`;
+    const ul = `<ul class="aves-lista">${l.map(item).join("")}</ul>`;
+    // A long tail of small shares is folded, so the species the site matters most for come first.
+    return g !== groups[0][0] && "CN".includes(g) && l.length > 12
+      ? `<details><summary><h3 class="aves-grado">${head}</h3></summary>${ul}</details>`
+      : `<h3 class="aves-grado">${head}</h3>${ul}`;
+  };
+  const other = x.other ? `<p class="meta">Y ${x.other === 1 ? "otra especie presente" : `otras ${x.other} especies presentes`}
+    con una población poco significativa aquí o sin evaluar.</p>` : "";
+  host.hidden = false;
+  host.innerHTML = `<h2 class="sec">Sus aves</h2>
+    <p class="sec-sub">Las especies que da el formulario oficial de ${esc(name)} como ${esc(D.kind)}: qué parte de las que hay en España acoge cada una y en qué época del año.</p>
+    ${groups.length ? groups.map(block).join("") : `<p class="vacio">El formulario no atribuye a este espacio ninguna población significativa de aves.</p>`}
+    ${other}
+    <p class="meta fuente">Formulario normalizado de datos de Natura 2000 (Agencia Europea de Medio Ambiente, ${esc(AVES.version.replace("end", "final de ").replace(" rev1", ""))}), <a href="https://creativecommons.org/licenses/by/4.0/deed.es">CC BY 4.0</a> ·
+      <a href="${sdf}">ficha oficial</a> · <a href="https://doi.org/${esc(AVES.doi)}">datos</a> · nombres en castellano del MITECO · <a href="datos/aves.json">aves.json</a></p>`;
 }
 
 // The round number just above v and the decimals it needs: 0.69 -> 0.8, 3.2 -> 4, 0.21 -> 0.25.
