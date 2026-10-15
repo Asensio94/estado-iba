@@ -46,20 +46,20 @@ def _munis(resolve: Resolve, names: list[str] | None, provinces: list[str] | Non
 
 
 KINDS = {"notice", "resolution", "fire", "land_change", "wetland_water", "river_flow", "power_line", "migration",
-         "night_light"}
+         "flood_building", "night_light", "wastewater", "bathing_water"}
 REQUIRED = ("id", "kind", "date", "title", "url", "precision")
+COUNTS = {"flood_building"}  # stock counts per place: a zero is «nothing to report», not a signal
 # Municipality codes: INE in Spain, INSEE in France (Corsica's departments are 2A and 2B).
 MUNI_CODE = {"ES": re.compile(r"^\d{5}$"), "FR": re.compile(r"^(\d{5}|2[AB]\d{3})$")}
-SCHEMA_FILE = config.DOCS_DIR / "signals.schema.json"
 
 
 def schema_errors(doc: dict) -> list[str]:
     """Where a signals.json breaks the contract's JSON Schema (versions 1 and 2), as «path: message»."""
-    import json
-
     from jsonschema import Draft202012Validator
 
-    v = Draft202012Validator(json.loads(SCHEMA_FILE.read_text(encoding="utf-8")))
+    from . import contract
+
+    v = Draft202012Validator(contract.schema())
     return [f"{'/'.join(map(str, e.absolute_path)) or '(raíz)'}: {e.message}"
             for e in sorted(v.iter_errors(doc), key=lambda e: list(map(str, e.absolute_path)))]
 
@@ -97,6 +97,8 @@ def published(doc: dict, source: str, resolve: Resolve, locate: Callable,
         if not all(s.get(k) for k in REQUIRED) or s["kind"] not in KINDS:
             dropped += 1
             continue
+        if s["kind"] in COUNTS and not (s.get("value") or {}).get("amount"):
+            continue
         details = s.get("details") or {}
         if "promoter" in details:  # whoever sends it
             details = {**details, "promoter": promoter(details["promoter"])}
@@ -114,6 +116,11 @@ def published(doc: dict, source: str, resolve: Resolve, locate: Callable,
     if dropped:
         print(f"[{source}] signals.json: {dropped} señales incompletas descartadas", file=sys.stderr)
     return {"label": cov["label"], "sites": cov.get("sites"), "note": cov.get("note", "")}, out
+
+
+def unpublished(label: str) -> tuple[dict, list[dict]]:
+    """A sibling read only through its signals.json: until it publishes one, it contributes nothing."""
+    return {"label": label, "sites": [], "note": "Aún no publica sus señales."}, []
 
 
 def observatorio(state: dict, resolve: Resolve) -> tuple[dict, list[dict]]:

@@ -32,6 +32,7 @@ const LAYERS = [
   {id: "tendidos", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
   {id: "luz", color: "#e3b505", shape: "sun", source: "black-marble", kinds: ["night_light"]},
   {id: "migracion", color: OUTLINE, stroke: "#fff", shape: "star", source: "sub-nocte", kinds: ["migration"]},
+  {id: "depuracion", color: "#7a5230", shape: "drop", source: "depuracion-y-bano", kinds: ["wastewater", "bathing_water"]},
 ].map(ly => ({...ly, name: T.layers[ly.id]}));
 // The light layer is the one pale fill: it sits outside the lightness band of the others, so it
 // leans on the dark outline every mark has, and on its own shape, a sun.
@@ -52,6 +53,7 @@ const SHAPE = {
   plus: `<path d="M7 2h6v5h5v6h-5v5H7v-5H2V7h5z"/>`,
   star: `<polygon points="${STAR}"/>`,
   sun: `<polygon points="${SUN}"/>`,
+  drop: `<path d="M10 1.5C7.5 5 3.5 9.3 3.5 12.5a6.5 6.5 0 0 0 13 0C16.5 9.3 12.5 5 10 1.5Z"/>`,
 };
 
 let D, M, SHAPES, REGIONS_GEO, capa, MAPS = [];
@@ -581,11 +583,11 @@ function signalItem(s, code) {
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
   if (s.kind === "night_light") extra.push(t("light_line", {now: num(d.radiance, 2), before: num(d.baseline, 2), expected: num(d.expected, 2)}));
-  else if (PRECISION[s.precision] && s.kind !== "wetland_water") extra.push(PRECISION[s.precision]);
+  else if (PRECISION[s.precision] && !["wetland_water", "flood_building", "wastewater", "bathing_water"].includes(s.kind)) extra.push(PRECISION[s.precision]);
   const fotos = d.before && d.after ? `<div class="fotos">
       <figure><img loading="lazy" src="${esc(d.before)}" alt="${esc(t("Before"))}"><figcaption>${t("before")} · ${fecha(d.before_date)}</figcaption></figure>
       <figure><img loading="lazy" src="${esc(d.after)}" alt="${esc(t("After"))}"><figcaption>${t("after")} · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
-  const means = MEANS[s.kind] ? `<details class="significa"><summary>${t("what_means")}</summary><p>${esc(MEANS[s.kind])}${s.precision === "municipio" ? " " + esc(PREC_NOTE.municipio) : ""}</p></details>` : "";
+  const means = MEANS[s.kind] ? `<details class="significa"><summary>${t("what_means")}</summary><p>${esc(MEANS[s.kind])}${s.precision === "municipio" && s.kind !== "flood_building" ? " " + esc(PREC_NOTE.municipio) : ""}</p></details>` : "";
   return `<li class="item ${isOpen(s) ? "urgente" : ""}">
     <div class="t">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${fecha(s.date)}${code ? siteHa(s, code) : ""}${value(s)} · ${extra.join(" · ")}</div>${fotos}${means}</li>`;

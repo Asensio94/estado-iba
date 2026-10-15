@@ -248,7 +248,10 @@ _ES = {
         "river_flow": {"tag": "Río", "theme": "Caudal de los ríos"},
         "power_line": {"tag": "Infraestructura", "theme": "Aerogeneradores y tendidos eléctricos"},
         "migration": {"tag": "Migración", "theme": "Migración nocturna"},
+        "flood_building": {"tag": "Inundable", "theme": "Edificios en zona inundable"},
         "night_light": {"tag": "Luz", "theme": "Luz artificial de noche"},
+        "wastewater": {"tag": "Depuración", "theme": "Depuración y baño"},
+        "bathing_water": {"tag": "Baño", "theme": "Depuración y baño"},
     },
     "precision": {
         "parcelas": "cruce por parcelas", "municipio": "cruce por municipio", "perimetro": "perímetro Sentinel-2",
@@ -266,6 +269,14 @@ _ES = {
                        "puede ser una obra autorizada, una corta o un cambio de cultivo. Se indica si se encontró "
                        "expediente.",
         "wetland_water": "Agua libre medida con Sentinel-2, comparada con la mediana del mismo mes en años anteriores.",
+        "flood_building": "Edificios del Catastro construidos después de 2016 dentro de las zonas inundables "
+                          "cartografiadas por el SNCZI (flujo preferente, 100 y 500 años). Es un recuento del municipio "
+                          "entero, no un hecho de un día: la fecha es la de los datos del Catastro.",
+        "wastewater": "Aglomeración urbana cuya depuración no cumple la directiva europea de aguas residuales según el "
+                      "último informe de España a la Agencia Europea de Medio Ambiente. Es un indicio: el punto es el "
+                      "núcleo urbano, no el vertido, y la fecha es la de la situación informada.",
+        "bathing_water": "Zona de baño clasificada como insuficiente en la última temporada por la calidad "
+                         "microbiológica del agua. Las temporadas cuentan los años con esa misma clasificación.",
         "night_light": "Brillo medio de noche de los píxeles del espacio en las imágenes anuales del satélite VIIRS "
                        "(NASA Black Marble), de media en los dos últimos años frente a los tres primeros, y comparado "
                        "con lo que cambiaron los espacios que eran igual de oscuros: el producto sube y baja de un año "
@@ -282,7 +293,7 @@ _ES = {
         "proyectos": "Proyectos en evaluación", "fuego": "Incendios en 12 meses", "suelo": "Cambios de uso del suelo",
         "humedales": "Agua de los humedales", "rios": "Caudal de los ríos",
         "tendidos": "Aerogeneradores y tendidos de riesgo alto", "luz": "Luz de noche en aumento",
-        "migracion": "Migración esta noche",
+        "migracion": "Migración esta noche", "depuracion": "Depuración y baño",
     },
     "indicators": {
         "precise": "Proyectos dentro, por parcelas", "open": "Proyectos con plazo abierto",
@@ -480,7 +491,10 @@ _FR = {
         "river_flow": {"tag": "Rivière", "theme": "Débit des rivières"},
         "power_line": {"tag": "Infrastructure", "theme": "Éoliennes et lignes électriques"},
         "migration": {"tag": "Migration", "theme": "Migration nocturne"},
+        "flood_building": {"tag": "Inondable", "theme": "Bâtiments en zone inondable"},
         "night_light": {"tag": "Lumière", "theme": "Lumière artificielle la nuit"},
+        "wastewater": {"tag": "Épuration", "theme": "Épuration et baignade"},
+        "bathing_water": {"tag": "Baignade", "theme": "Épuration et baignade"},
     },
     "precision": {
         "parcelas": "croisement par parcelles", "municipio": "croisement par commune",
@@ -498,6 +512,15 @@ _FR = {
                        "peut être un chantier autorisé, une coupe ou un changement de culture.",
         "wetland_water": "Eau libre mesurée avec Sentinel-2, comparée à la médiane du même mois les années "
                          "précédentes.",
+        "flood_building": "Bâtiments du cadastre espagnol construits après 2016 dans les zones inondables "
+                          "cartographiées par le SNCZI (lit majeur, crues de 100 et 500 ans). C'est un décompte de "
+                          "toute la commune, pas un fait daté : la date est celle des données du cadastre.",
+        "wastewater": "Agglomération dont l'épuration n'est pas conforme à la directive européenne sur les eaux "
+                      "résiduaires urbaines, d'après le dernier rapport à l'Agence européenne pour l'environnement. "
+                      "C'est un indice : le point est le bourg, pas le rejet, et la date est celle de la situation "
+                      "déclarée.",
+        "bathing_water": "Zone de baignade classée insuffisante la dernière saison pour la qualité microbiologique de "
+                         "l'eau. Les saisons comptent les années avec ce même classement.",
         "night_light": "Luminosité nocturne moyenne des pixels du site dans les images annuelles du satellite VIIRS "
                        "(NASA Black Marble), en moyenne sur les deux dernières années face aux trois premières, et "
                        "comparée à l'évolution des sites qui étaient aussi sombres : le produit monte et descend d'une "
@@ -515,6 +538,7 @@ _FR = {
         "suelo": "Changements d'occupation du sol", "humedales": "Eau des zones humides",
         "rios": "Débit des rivières", "tendidos": "Éoliennes et lignes à risque élevé",
         "luz": "Lumière nocturne en hausse", "migracion": "Migration cette nuit",
+        "depuracion": "Épuration et baignade",
     },
     # Only what some source watches in France: the night light, for now.
     "indicators": {"light": "Plus de lumière artificielle la nuit"},
@@ -548,7 +572,9 @@ _PY_ES = {
         "caudal-ecologico": ("Caudal ecológico", "caudal de sus ríos frente al mínimo legal"),
         "riesgo-tendidos-aves": ("Riesgo de tendidos para aves", "aerogeneradores y tendidos peligrosos"),
         "sub-nocte": ("Sub Nocte", "migración nocturna"),
+        "zona-inundable": ("Zona inundable", "edificios construidos en zona inundable"),
         "black-marble": ("NASA Black Marble", "luz artificial de noche"),
+        "depuracion-y-bano": ("Depuración y baño", "depuradoras que no cumplen y zonas de baño insuficientes"),
     },
     "light_title": "La luz artificial de noche ha subido un {pct} desde {b0}-{b1}; en los espacios igual de oscuros, "
                    "{them}",
@@ -579,7 +605,10 @@ _PY_FR = {
         "caudal-ecologico": ("Caudal ecológico", "le débit de ses rivières face au minimum légal"),
         "riesgo-tendidos-aves": ("Riesgo de tendidos para aves", "les éoliennes et lignes électriques dangereuses"),
         "sub-nocte": ("Sub Nocte", "la migration nocturne"),
+        "zona-inundable": ("Zona inundable", "les bâtiments construits en zone inondable"),
         "black-marble": ("NASA Black Marble", "la lumière artificielle la nuit"),
+        "depuracion-y-bano": ("Depuración y baño", "les stations d'épuration non conformes et les baignades "
+                                                   "insuffisantes"),
     },
     "light_title": "La lumière artificielle la nuit a augmenté de {pct} depuis {b0}-{b1} ; dans les sites aussi "
                    "sombres, elle {them}",

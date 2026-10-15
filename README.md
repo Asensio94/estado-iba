@@ -25,7 +25,7 @@ Desde la ola 0, el país es una dimensión más. Francia tiene su propia web, en
 - **Qué se vigila hoy.** La luz de noche (NASA Black Marble), comparada con las ZPS francesas que eran igual de oscuras, no con las españolas, y las aves de cada espacio. Los demás proyectos hermanos leen fuentes españolas: sus capas salen en gris con «Pas en France». En la portada no se dice «ninguna consulta abierta» donde nadie mira las consultas.
 - **Datos aparte.** Francia escribe en `docs/fr/` sus propios `datos/hub.json`, `datos/municipios.json`, `datos/luz.json`, `sitios.geojson`, `comunidades.geojson` (regiones) y RSS. Los códigos no se mezclan nunca: `13004` es Arles para el INSEE y Albaladejo para el INE. Lo único compartido es `docs/datos/aves.json`, por `SITECODE`, con el nombre de cada especie en las dos lenguas.
 - **Lengua.** Los textos de cada web están en `estado/i18n.py`, por lengua, con el mismo patrón que `humedales/i18n.py`: la página los lleva dentro (`window.I18N`) y `app.js` es el mismo para los dos países. En francés, un espacio fino de no separación (U+202F) antes de `: ; ! ? %`, dentro de `« »` y como separador de miles. Los datos no dependen de la lengua.
-- **Contrato v2.** Cada señal lleva `country` y la cobertura va por país. Un `signals.json` sin `country` (v1) se sigue leyendo como España. `check` valida las dos versiones con [`docs/signals.schema.json`](docs/signals.schema.json). Detalle en [CONTRATO.md](CONTRATO.md#versión-2-varios-países).
+- **Contrato v2.** Cada señal lleva `country` y la cobertura va por país. Un `signals.json` sin `country` (v1) se sigue leyendo como España. `check` valida las dos versiones con [`signals.schema.json`](signals.schema.json). Detalle en [CONTRATO.md](CONTRATO.md#versión-2-varios-países).
 - Si Francia falla en una actualización, España se publica igual.
 
 ## Qué se puede hacer en la web
@@ -81,6 +81,8 @@ El seguimiento de las IBA de BirdLife distingue presión, estado y respuesta. Ca
 | Estado | Días por debajo del caudal ecológico mínimo en los últimos 30 días | [Caudal ecológico](https://github.com/Asensio94/caudal-ecologico) |
 | Referencia | Aves de cada ZEPA: época del año y parte de la población española que acoge | [Natura 2000](https://doi.org/10.2909/d713bff7-0cdf-4f0d-acd1-dc3c63af237e), Agencia Europea de Medio Ambiente, CC BY 4.0 |
 | Estado | Migración nocturna prevista, por ciudad | [Sub Nocte](https://github.com/Asensio94/sub-nocte) |
+| Contexto | Edificios construidos después de 2016 en zona inundable, por municipio | [Zona inundable](https://github.com/Asensio94/zona-inundable) |
+| Presión | Depuradoras que no cumplen la directiva y zonas de baño insuficientes, por municipio | [Depuración y baño](https://github.com/Asensio94/depuracion-y-bano) |
 | Respuesta | Plazo de alegaciones abierto, con su fecha límite | Observatorio de alegaciones |
 | Contexto | Sociedad promotora → grupo → empresa cotizada | [Grafo de promotores](https://github.com/Asensio94/grafo-promotores) y [Cartera de las cotizadas](https://github.com/Asensio94/cartera-cotizadas) |
 
@@ -116,7 +118,7 @@ Cada ficha dice qué aves dieron valor al espacio, para que cada presión se lea
 
 ### Vigilado no es lo mismo que tranquilo
 
-Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los aerogeneradores y tendidos cubren Cantabria y el Estrecho. La luz de noche cubre los espacios de 4 píxeles o más. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris.
+Cada fuente declara qué espacios cubre. En el mapa de cada lugar, la capa de un hermano que no mira esa zona sale en gris con la nota «no cubre esta zona». La que la mira y no tiene nada que contar dice «vigilado, sin novedades». En las cifras, un espacio sin vigilancia vale `null`, no cero. Centinela solo cubre Cantabria. Los humedales son seis. Los caudales son 55 puntos del Júcar y el Guadiana. Los aerogeneradores y tendidos cubren Cantabria y el Estrecho. La luz de noche cubre los espacios de 4 píxeles o más. La migración se prevé por ciudad, así que en la ficha de un espacio sale en gris. Los edificios en zona inundable se cuentan por municipio y solo salen en la ficha de cada municipio. Lo mismo pasa con las depuradoras y las zonas de baño: su punto es el núcleo urbano o la playa, no el vertido, y por eso no se cruzan con los espacios.
 
 ### Comunidades autónomas
 
@@ -166,10 +168,21 @@ Para cada anuncio se buscan las sociedades que lo mencionan en el Grafo de promo
 - Las aves de cada espacio son las del formulario oficial, que cada comunidad actualiza cuando puede: algunas listas son antiguas o incompletas, y la parte de la población española depende de los censos que se usaron.
 - La luz de noche llega con retraso: la NASA publica cada año en la primavera siguiente. Las bajadas no se avisan, porque pueden ser solo un cambio a LED. En los espacios marinos, parte de la luz es de barcos de pesca.
 
+### Salud de los proyectos hermanos
+
+Cada día a las 11:00 UTC, `salud.yml` revisa todos los proyectos hermanos, no solo los que lee el panel:
+
+1. Busca los workflows programados de cada repositorio. Avisa si su última ejecución falló o si GitHub los ha apagado. GitHub apaga los cron de un repositorio público tras 60 días sin actividad, y a los 45 ya sale un aviso.
+2. Valida el `signals.json` publicado contra el contrato: campos, fechas y tipos. Un tipo que el contrato no recoge es un problema, porque el panel lo descarta sin avisar.
+3. Comprueba que el `signals.json` no esté viejo según el ritmo de cada proyecto (`SIBLINGS` en `estado/config.py`).
+
+Si encuentra algo, abre el issue «Salud de los proyectos hermanos». Cuando cambia la lista de problemas, lo comenta, y así avisa a quien vigile el repositorio. Si la lista no cambia, actualiza el informe sin avisar. Cuando ya no hay nada, lo cierra.
+
 ## Pendiente
 
 - Cambiar las ZEPA por las IBA cuando SEO/BirdLife lo autorice. La capa original se guardará en privado y solo se publicará la geometría simplificada.
 - Que cada hermano publique su propio `signals.json` según [CONTRATO.md](CONTRATO.md).
+- `water_status` (estado de las masas de agua, de caudal-ecologico) se queda fuera del contrato por ahora: son casi 3.000 puntos. Si entra, mejor como una cifra por espacio.
 - Indicar qué IBA no tienen ninguna ZEPA (respuesta).
 
 ## Uso
@@ -179,6 +192,8 @@ pip install -r requirements.txt
 python -m pytest -q
 python -m estado.cli build            # --today AAAA-MM-DD para fijar la fecha
 python -m estado.cli check vigia-incendios signals.json   # un signals.json frente a su adaptador
+python -m estado.cli validate vigia-incendios signals.json  # un signals.json frente al contrato
+GITHUB_TOKEN=... python -m estado.cli health              # salud de todos los hermanos (--issue: actualiza el issue)
 python -m estado.cli luz              # luz de noche de España y Francia (o: luz ES, luz FR); pide EARTHDATA_USERNAME y EARTHDATA_PASSWORD
 python -m estado.cli aves             # aves de cada espacio desde Natura 2000 (o: aves <zip ya descargado>)
 python -m estado.cli communes         # una vez al año: communes, departamentos y regiones de Francia del IGN
@@ -198,7 +213,6 @@ Solo `docs/`:
 - `datos/aves.json`, con las aves de cada espacio: código de especie, épocas y parte de la población española, sin cifras.
 - `sitios.geojson` y `comunidades.geojson`, con los límites simplificados.
 - Un canal RSS por espacio y otro por comunidad.
-- `signals.schema.json`, el esquema JSON del contrato.
 - `fr/`, lo mismo para Francia, salvo `app.js`, `app.css` y `aves.json`, que se comparten.
 
 No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dormideros ni territorios). De los aerogeneradores y tendidos solo se publica cuántos elementos de riesgo hay en cada espacio, nunca qué especies los usan. Tampoco se guarda ningún dato personal: las personas físicas del Grafo se descartan.
@@ -215,6 +229,8 @@ No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dorm
 - Aerogeneradores y tendidos: © colaboradores de OpenStreetMap, vía Riesgo de tendidos para aves.
 - Migración: radares meteorológicos europeos, vía Sub Nocte.
 - Luz de noche: NASA Black Marble, VNP46A4 versión 2 ([doi:10.5067/VIIRS/VNP46A4.002](https://doi.org/10.5067/VIIRS/VNP46A4.002)), datos abiertos de la NASA.
+- Zonas inundables: SNCZI (MITECO) y Catastro, vía Zona inundable.
+- Depuración y zonas de baño: informe de España a la AEMA (Directiva 91/271/CEE) y Náyade, vía Depuración y baño.
 - Sociedades y grupos: BOE y BORME, vía el Grafo de promotores y la Cartera de las cotizadas.
 - Francia: ZPS de la Agencia Europea de Medio Ambiente (CC BY 4.0); communes, departamentos y regiones de IGN Admin Express COG-CARTO (Licence Ouverte 2.0); nombres franceses de las aves de Wikidata (CC0).
 - Mapa: © colaboradores de OpenStreetMap.

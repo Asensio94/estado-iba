@@ -1,10 +1,10 @@
 # Contrato de señales
 
-Estado de las IBA reúne lo que publican los proyectos hermanos. Para no depender del formato interno de cada uno, todo se traduce a **señales**: cada señal es un hecho con fecha, lugar y enlace a su registro original. Una señal puede ser un anuncio del BOE, un incendio, una alerta de cambio de uso, una medida de agua o caudal, o un tendido peligroso.
+Estado de las IBA reúne lo que publican los proyectos hermanos. Para no depender del formato interno de cada uno, todo se traduce a **señales**: cada señal es un hecho con fecha, lugar y enlace a su registro original. Una señal puede ser un anuncio del BOE, un incendio, una alerta de cambio de uso, una medida de agua o caudal, un tendido peligroso, una depuradora que no cumple, una zona de baño insuficiente o el recuento de edificios nuevos en zona inundable de un municipio.
 
 Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `https://asensio94.github.io/<proyecto>/signals.json`. Estado de las IBA lo busca en cada actualización. Mientras un proyecto no lo publique, o si el fichero no se puede leer, el hub traduce sus ficheros internos como hasta ahora (`estado/adapters.py`).
 
-Hay dos versiones. La **1** es solo España y sigue valiendo tal cual. La **2** añade el país: cada señal dice de qué país es y la cobertura va por país (más abajo, [Versión 2](#versión-2-varios-países)). Las dos tienen su esquema JSON en [`docs/signals.schema.json`](docs/signals.schema.json), publicado en `https://asensio94.github.io/estado-iba/signals.schema.json`.
+Hay dos versiones. La **1** es solo España y sigue valiendo tal cual. La **2** añade el país: cada señal dice de qué país es y la cobertura va por país (más abajo, [Versión 2](#versión-2-varios-países)). Las dos caben en el mismo esquema JSON, [`signals.schema.json`](signals.schema.json).
 
 ## `signals.json`
 
@@ -40,7 +40,7 @@ Hay dos versiones. La **1** es solo España y sigue valiendo tal cual. La **2** 
 | Campo | Obligatorio | Qué es |
 |---|---|---|
 | `id` | sí | Identificador estable dentro del proyecto. El hub lo combina con `source`. |
-| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`, `night_light`. |
+| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`, `flood_building`, `night_light`, `wastewater`, `bathing_water`. |
 | `date` | sí | Fecha del hecho (`AAAA-MM-DD`): publicación, detección o medida. |
 | `title` | sí | Una línea legible, en español. |
 | `url` | sí | Enlace directo al registro: la web del proyecto con su ancla o la fuente oficial. |
@@ -62,14 +62,40 @@ Hay dos versiones. La **1** es solo España y sigue valiendo tal cual. La **2** 
 - El hub aplica sus propias ventanas de tiempo, sea quien sea quien envíe la señal: los incendios, 365 días.
 - El `id` es estable entre ejecuciones, para que los enlaces y los RSS no cambien.
 - Una señal sin un campo obligatorio, o de un tipo que no está en la lista, se descarta.
+- Las depuradoras (`wastewater`) y las zonas de baño (`bathing_water`) tampoco tienen ventana: son el estado del último informe, que se publica cada dos años o cada temporada.
+- Los recuentos (`flood_building`) no tienen ventana: son un inventario, y su `date` es la fecha del dato de origen. Un recuento a cero no es una señal y se descarta.
 
-Antes de publicar el fichero por primera vez, desde estado-iba:
+El contrato también está escrito como JSON Schema en [`signals.schema.json`](signals.schema.json), para validarlo con cualquier herramienta. Si la tabla y el esquema no dicen lo mismo, falla un test de estado-iba.
+
+Para comprobar un fichero antes de publicarlo, desde estado-iba:
 
 ```bash
-python -m estado.cli check vigia-incendios ruta/a/signals.json
+python -m estado.cli validate vigia-incendios ruta/a/signals.json   # ¿cumple el contrato?
+python -m estado.cli check vigia-incendios ruta/a/signals.json      # ¿dice lo mismo que el adaptador?
 ```
 
-Primero valida el fichero contra el esquema JSON (versión 1 o 2) y enumera cada error con su ruta. Después compara la parte de España con lo que el adaptador lee hoy de la web del proyecto y enumera las diferencias tal como las vería el panel. De los demás países no hay adaptador con el que comparar: dice cuántas señales son válidas y cuántas caen en sus espacios.
+`validate` es estricto: un campo que no está en el contrato, una fecha mal escrita o un `kind` nuevo son errores. El panel, en cambio, lee con tolerancia: descarta la señal que no cumple y publica el resto. Por eso, si un proyecto necesita un tipo nuevo, primero se añade aquí, al esquema y a `adapters.KINDS`, y la web aprende a mostrarlo. Hasta entonces, el panel descarta esas señales.
+
+Cada día, `salud.yml` valida el `signals.json` publicado de cada hermano y lo cuenta en el issue «Salud de los proyectos hermanos».
+
+`check` también valida primero el fichero contra el esquema y enumera cada error con su ruta. Después compara la parte de España con lo que el adaptador lee hoy de la web del proyecto y enumera las diferencias tal como las vería el panel. De los demás países no hay adaptador con el que comparar: dice cuántas señales son válidas y cuántas caen en sus espacios.
+
+## Tipos
+
+| `kind` | Proyecto | Qué cuenta |
+|---|---|---|
+| `notice` | observatorio-alegaciones | Anuncio del BOE con trámite ambiental en información pública. |
+| `resolution` | observatorio-alegaciones | Resolución que cierra el procedimiento de un anuncio. |
+| `fire` | vigia-incendios | Incendio visto por satélite, con hectáreas por espacio. |
+| `land_change` | centinela-natura | Alerta de cambio de cubierta vegetal. |
+| `wetland_water` | vigilancia-humedales | Agua libre de un humedal frente a su referencia mensual. |
+| `river_flow` | caudal-ecologico | Días bajo el caudal ecológico mínimo en una estación de aforo. |
+| `power_line` | riesgo-tendidos-aves | Apoyos y vanos de riesgo alto dentro de un espacio. |
+| `migration` | sub-nocte | Migración nocturna prevista en una ciudad. |
+| `flood_building` | zona-inundable | Edificios construidos después de 2016 dentro de las zonas inundables del SNCZI (zona de flujo preferente, T100 y T500), uno por municipio (`precision: "municipio"`, sin `details.point`). `value` es ese número, en `edificios`; `details` lleva el recuento por zona (`zfp`, `t100`, `t500`), el total de edificios en zona inundable y el ritmo anual antes y después de 2016. `date` es la fecha del dato del Catastro. |
+| `night_light` | estado-iba (NASA Black Marble) | Luz artificial de noche de un espacio que ha subido más que la de los espacios que eran igual de oscuros (satélite VIIRS, píxeles de unos 500 m, `precision: "pixeles"`). `value` es esa subida de más, en `%`. No llega por `signals.json`: el hub la calcula con datos abiertos de la NASA. |
+| `wastewater` | depuracion-y-bano | Aglomeración urbana de más de 2.000 habitantes equivalentes cuya depuración no cumple la Directiva 91/271/CEE según el último informe a la AEMA, una por aglomeración (`precision: "punto"`, con su municipio y `details.point` en el núcleo, no en el vertido). `value` son los habitantes equivalentes; `details.carencias`, lo que falla. `date` es la fecha de la situación informada. |
+| `bathing_water` | depuracion-y-bano | Zona de baño clasificada como insuficiente en la última temporada, una por zona (`precision: "punto"`, con municipio y `details.point`). `value` son las temporadas insuficientes; `details.historial`, la clasificación de cada año. |
 
 ## Versión 2: varios países
 

@@ -199,6 +199,38 @@ def test_natural_persons_are_never_named_as_promoters():
     assert A.published(doc, "s", resolve, lambda lon, lat: ([], []))[1][0]["details"]["promoter"] is None
 
 
+def _flood(ine, amount):
+    return {"id": ine, "kind": "flood_building", "date": "2026-07-15", "title": f"{amount} edificios",
+            "url": f"https://asensio94.github.io/zona-inundable/#{ine}", "municipalities": [ine],
+            "precision": "municipio", "value": {"amount": amount, "unit": "edificios"},
+            "details": {"zfp": 1, "t100": 2, "t500": amount - 3, "total": 40, "rate_before": 1.5, "rate_after": 2.0}}
+
+
+def test_published_keeps_flood_counts_by_municipality_and_drops_zeros():
+    doc = _doc([_flood("46250", 12), _flood("01001", 0)], source="zona-inundable")
+    cov, out = A.published(doc, "zona-inundable", resolve, lambda lon, lat: pytest.fail("no point to locate"))
+    assert [s["id"] for s in out] == ["46250"]  # a zero is nothing to report
+    s = out[0]
+    assert s["sites"] == [] and s["municipalities"] == ["46250"] and s["precision"] == "municipio"
+    assert s["value"] == {"amount": 12, "unit": "edificios"} and s["details"]["t500"] == 9
+    assert "point" not in s["details"] and cov["sites"] is None
+
+
+def test_unpublished_sibling_contributes_nothing():
+    cov, out = A.unpublished("Toda España")
+    assert out == [] and cov["sites"] == [] and cov["label"] == "Toda España"
+
+
+def test_published_wastewater_and_bathing_stay_in_their_municipality():
+    sig = lambda i, kind: {"id": i, "kind": kind, "date": "2024-06-30", "title": i, "url": "https://x",
+                           "municipalities": ["46250"], "precision": "punto", "status": "indicio",
+                           "value": {"amount": 1, "unit": "h-e"}, "details": {"point": [-0.37, 39.47]}}
+    doc = _doc([sig("W", "wastewater"), sig("B", "bathing_water")], source="depuracion-y-bano")
+    _, out = A.published(doc, "depuracion-y-bano", resolve, lambda lon, lat: pytest.fail("has a municipality"))
+    assert [(s["kind"], s["sites"], s["municipalities"]) for s in out] == [
+        ("wastewater", [], ["46250"]), ("bathing_water", [], ["46250"])]
+
+
 def _light(**sites):
     return {"doi": "10.5067/VIIRS/VNP46A4.002", "years": [2012, 2013, 2014, 2015, 2024, 2025],
             "sites": {c: {"pixels": px, "radiance": r} for c, (px, r) in sites.items()}}

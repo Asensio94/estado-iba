@@ -62,7 +62,7 @@ def test_the_schema_takes_both_versions_and_names_each_fault():
     assert any(e.startswith("signals/1/municipalities/0") for e in errors)
     assert any(e.startswith("signals/2/country") for e in errors)
     assert A.schema_errors({**_v2([]), "coverage": {"PT": {"label": "x", "sites": None}}})
-    v1 = {"source": "s", "version": 1, "generated": "g", "coverage": {"label": "x", "sites": None},
+    v1 = {"source": "s", "version": 1, "generated": "2026-10-15T07:00Z", "coverage": {"label": "x", "sites": None},
           "signals": [_sig("a", munis=["2A004"])]}
     assert [e.split(":")[0] for e in A.schema_errors(v1)] == ["signals/0/municipalities/0"]
 
