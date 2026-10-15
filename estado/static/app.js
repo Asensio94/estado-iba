@@ -1,5 +1,5 @@
 "use strict";
-// Estado de las IBA: one page, five views (home, community, site, municipality, deadlines) routed by the URL hash.
+// Estado de las IBA: one page, six views (home, community, site, municipality, deadlines, signal) routed by the URL hash.
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -16,9 +16,10 @@ const KIND = {
   land_change: {tag: "Suelo", theme: "Cambios de uso del suelo"},
   wetland_water: {tag: "Agua", theme: "Agua de los humedales"},
   river_flow: {tag: "Río", theme: "Caudal de los ríos"},
-  power_line: {tag: "Tendido", theme: "Tendidos eléctricos"},
+  power_line: {tag: "Infraestructura", theme: "Aerogeneradores y tendidos eléctricos"},
   migration: {tag: "Migración", theme: "Migración nocturna"},
   flood_building: {tag: "Inundable", theme: "Edificios en zona inundable"},
+  night_light: {tag: "Luz", theme: "Luz artificial de noche"},
 };
 const PRECISION = {
   parcelas: "cruce por parcelas", municipio: "cruce por municipio", perimetro: "perímetro Sentinel-2",
@@ -31,6 +32,7 @@ const MEANS = {
   land_change: "Centinela compara la vegetación con imágenes de Sentinel-2. Una alerta no es una infracción: puede ser una obra autorizada, una corta o un cambio de cultivo. Se indica si se encontró expediente.",
   wetland_water: "Agua libre medida con Sentinel-2, comparada con la mediana del mismo mes en años anteriores.",
   flood_building: "Edificios del Catastro construidos después de 2016 dentro de las zonas inundables cartografiadas por el SNCZI (flujo preferente, 100 y 500 años). Es un recuento del municipio entero, no un hecho de un día: la fecha es la de los datos del Catastro.",
+  night_light: "Brillo medio de noche de los píxeles del espacio en las imágenes anuales del satélite VIIRS (NASA Black Marble), de media en los dos últimos años frente a los tres primeros, y comparado con lo que cambiaron los espacios que eran igual de oscuros: el producto sube y baja de un año a otro en todo el país a la vez. El sensor apenas ve la luz azul de los LED blancos: una subida es real y, si acaso, se queda corta; una bajada puede ser solo el cambio de farolas, por eso no se avisa de las bajadas.",
 };
 const PREC_NOTE = {
   municipio: "Este anuncio no trae parcelas: se ha cruzado el término municipal entero con el espacio, así que el proyecto puede quedar fuera.",
@@ -47,9 +49,16 @@ const LAYERS = [
   {id: "suelo", name: "Cambios de uso del suelo", color: "#1baf7a", shape: "diamond", source: "centinela-natura", kinds: ["land_change"]},
   {id: "humedales", name: "Agua de los humedales", color: "#2a78d6", shape: "circle", source: "vigilancia-humedales", kinds: ["wetland_water"]},
   {id: "rios", name: "Caudal de los ríos", color: "#2a78d6", shape: "ring", source: "caudal-ecologico", kinds: ["river_flow"]},
-  {id: "tendidos", name: "Tendidos de riesgo alto", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
+  {id: "tendidos", name: "Aerogeneradores y tendidos de riesgo alto", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
+  {id: "luz", name: "Luz de noche en aumento", color: "#e3b505", shape: "sun", source: "black-marble", kinds: ["night_light"]},
   {id: "migracion", name: "Migración esta noche", color: OUTLINE, stroke: "#fff", shape: "star", source: "sub-nocte", kinds: ["migration"]},
 ];
+// The light layer is the one pale fill: it sits outside the lightness band of the others, so it
+// leans on the dark outline every mark has, and on its own shape, a sun.
+const SUN = Array.from({length: 16}, (_, i) => {
+  const a = i * 22.5 * Math.PI / 180, r = i % 2 ? 5.6 : 9;
+  return `${(10 + r * Math.cos(a)).toFixed(2)},${(10 + r * Math.sin(a)).toFixed(2)}`;
+}).join(" ");
 const STAR = Array.from({length: 10}, (_, i) => {
   const a = (-90 + i * 36) * Math.PI / 180, r = i % 2 ? 3.9 : 9.2;
   return `${(10 + r * Math.cos(a)).toFixed(2)},${(10.8 + r * Math.sin(a)).toFixed(2)}`;
@@ -62,6 +71,7 @@ const SHAPE = {
   ring: `<circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="3.2" fill="#fff"/>`,
   plus: `<path d="M7 2h6v5h5v6h-5v5H7v-5H2V7h5z"/>`,
   star: `<polygon points="${STAR}"/>`,
+  sun: `<polygon points="${SUN}"/>`,
 };
 
 let D, M, SHAPES, REGIONS_GEO, capa, MAPS = [];
@@ -77,6 +87,7 @@ function dias(deadline) {
 const isOpen = s => s.deadline && s.deadline >= D.today && s.kind === "notice";
 const siteName = c => D.sitesByCode[c]?.name || c;
 const weekAgo = () => new Date(new Date(D.today + "T12:00:00") - 7 * 864e5).toISOString().slice(0, 10);
+const aviso = s => `#/a/${encodeURIComponent(s.source)}/${encodeURIComponent(s.id)}`;
 const regionLinks = ids => ids.map(id => D.regionsById[id]).filter(Boolean)
   .map(r => `<a href="#/ca/${esc(r.id)}">${esc(r.name)}</a>`).join(" · ");
 
@@ -90,7 +101,7 @@ function precTag(s) {
 function value(s) {
   if (!s.value || s.value.amount == null) return "";
   const a = s.value.amount;
-  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(s.value.unit)}`;
+  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(s.value.unit)}${s.kind === "night_light" ? " más de lo esperable" : ""}`;
 }
 function siteHa(s, code) {
   const x = (s.sites || []).find(z => z.code === code);
@@ -110,13 +121,14 @@ function home() {
     <p class="ejemplos">Por ejemplo: <a href="#/e/ES0000014">Monfragüe</a> · <a href="#/e/ES0000024">Doñana</a> · <a href="#/m/30016">Cartagena</a> · <a href="#/ca/06">Cantabria</a></p>
     <section class="bloque-home">
       <h2 class="sec">Todo en un mapa</h2>
-      <p class="sec-sub">Cada capa viene de un proyecto hermano y se activa o se apaga en la leyenda. Los espacios se colorean según lo que elijas.</p>
+      <p class="sec-sub">Cada capa viene de un proyecto hermano (la luz de noche, de la NASA) y se activa o se apaga en la leyenda. Los espacios se colorean según lo que elijas.</p>
       <div class="controles"><label>Colorear los espacios por <select id="indicador">
         <option value="precise">Proyectos dentro, por parcelas</option>
         <option value="open">Proyectos con plazo abierto</option>
         <option value="notices">Proyectos en su municipio</option>
         <option value="fire_ha">Hectáreas quemadas en 12 meses</option>
         <option value="land">Cambios de uso (solo Cantabria)</option>
+        <option value="light">Más luz artificial de noche</option>
       </select></label></div>
       <div id="mapa-host" class="mapa-host grande"></div>
       <div class="leyenda" id="leyenda"></div>
@@ -193,12 +205,12 @@ function plazoItem(s, code) {
   const sites = s.sites.map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ");
   return `<li class="item ${daysLeft(s.deadline) <= 7 ? "urgente" : ""}">
     <div class="meta"><span class="dias">${dias(s.deadline)}</span> · hasta el ${fecha(s.deadline)} ${precTag(s)}</div>
-    <div class="t"><a href="${esc(s.url)}">${esc(s.title)}</a></div>
+    <div class="t"><a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${code ? "" : sites + " · "}${fecha(s.date)}${value(s)}${s.details.promoter ? " · " + esc(s.details.promoter) : ""}</div></li>`;
 }
 function feedItem(s) {
   const sites = s.sites.slice(0, 3).map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ") + (s.sites.length > 3 ? ` y ${s.sites.length - 3} más` : "");
-  return `<li class="item"><div class="t">${tag(s)}<a href="${esc(s.url)}">${esc(s.title)}</a></div>
+  return `<li class="item"><div class="t">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${sites} · ${fecha(s.date)}${value(s)} ${precTag(s)}</div></li>`;
 }
 
@@ -208,6 +220,7 @@ const IND = {
   notices: {label: "proyectos en su municipio", f: n => n.notices},
   fire_ha: {label: "hectáreas quemadas", f: n => n.fire_ha},
   land: {label: "alertas de cambio de uso", f: n => n.land || 0},
+  light: {label: "% más luz de noche que otros igual de oscuros", f: n => n.light || 0},
 };
 
 function ranking(key) {
@@ -310,7 +323,7 @@ function marca(latlng, html, size, title, pop, keyboard, zIndexOffset = 0) {
 function popup(s) {
   const sites = s.sites.slice(0, 3).map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ");
   const status = s.status && !["notice", "migration"].includes(s.kind) ? " · " + esc(s.status) : "";
-  return `<div class="pop">${tag(s)}<a href="${esc(s.url)}">${esc(s.title)}</a>
+  return `<div class="pop">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a>
     <div class="meta">${fecha(s.date)}${value(s)}${status}${sites ? " · " + sites : ""}</div></div>`;
 }
 function popupNoche(s) {
@@ -322,7 +335,7 @@ function popupProyectos(x) {
   const list = x.list.slice().sort((a, b) => (isOpen(b) - isOpen(a)) || b.date.localeCompare(a.date));
   const n = list.length;
   return `<div class="pop"><b><a href="${esc(x.href)}">${esc(x.name)}</a></b> · ${n} ${n === 1 ? "proyecto" : "proyectos"}
-    <ul>${list.slice(0, 6).map(s => `<li>${isOpen(s) ? `<span class="dias">${dias(s.deadline)}</span> ` : ""}<a href="${esc(s.url)}">${esc(corta(s.title, 110))}</a>
+    <ul>${list.slice(0, 6).map(s => `<li>${isOpen(s) ? `<span class="dias">${dias(s.deadline)}</span> ` : ""}<a href="${aviso(s)}">${esc(corta(s.title, 110))}</a>
       <span class="meta">${fecha(s.date)}${s.precision === "municipio" ? " · por municipio" : ""}</span></li>`).join("")}</ul>
     ${n > 6 ? `<a href="${esc(x.href)}">y ${n - 6} más</a>` : ""}</div>`;
 }
@@ -586,13 +599,14 @@ function signalItem(s, code) {
   if (s.status && s.kind !== "notice") extra.push(esc(s.status));
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
-  if (PRECISION[s.precision] && !["wetland_water", "flood_building"].includes(s.kind)) extra.push(PRECISION[s.precision]);
+  if (s.kind === "night_light") extra.push(`${num(d.radiance, 2)} nW/cm²/sr frente a ${num(d.baseline, 2)}; como los igual de oscuros, ${num(d.expected, 2)} · píxeles VIIRS de unos 500 m`);
+  else if (PRECISION[s.precision] && !["wetland_water", "flood_building"].includes(s.kind)) extra.push(PRECISION[s.precision]);
   const fotos = d.before && d.after ? `<div class="fotos">
       <figure><img loading="lazy" src="${esc(d.before)}" alt="Antes"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
       <figure><img loading="lazy" src="${esc(d.after)}" alt="Después"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
   const means = MEANS[s.kind] ? `<details class="significa"><summary>¿Qué significa?</summary><p>${esc(MEANS[s.kind])}${s.precision === "municipio" && s.kind !== "flood_building" ? " " + esc(PREC_NOTE.municipio) : ""}</p></details>` : "";
   return `<li class="item ${isOpen(s) ? "urgente" : ""}">
-    <div class="t">${tag(s)}<a href="${esc(s.url)}">${esc(s.title)}</a></div>
+    <div class="t">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${fecha(s.date)}${code ? siteHa(s, code) : ""}${value(s)} · ${extra.join(" · ")}</div>${fotos}${means}</li>`;
 }
 function hilo(list) {
@@ -621,9 +635,11 @@ function siteView(code) {
           <p>${open.length === 1 ? "Un proyecto que toca este espacio admite alegaciones" : `${open.length} proyectos que tocan este espacio admiten alegaciones`}. Cualquier persona o entidad puede presentarlas.</p>
           <ul class="lista">${open.map(x => plazoItem(x, code)).join("")}</ul></div>` : ""}
         <section class="cronologia"><h2 class="sec">Qué ha pasado</h2>${timeline(list, code)}</section>
+        <section class="aves" id="aves-panel" hidden></section>
       </div>
       <aside>
         ${hilo(list)}
+        <div class="panel luz" id="luz-panel" hidden></div>
         <div class="panel rss"><h3>Recibe los avisos</h3>
           <p style="margin:0 0 6px">Suscríbete con tu lector de noticias para enterarte de cada novedad en este espacio:</p>
           <a href="rss/${esc(code)}.xml">rss/${esc(code)}.xml</a></div>
@@ -631,6 +647,136 @@ function siteView(code) {
     </div></div>`;
   window.scrollTo(0, 0);
   mapaTodo($("#mapa-host"), scopeSite(s), `Mapa de ${s.name}`);
+  luzPanel(code);
+  avesPanel(code, s.name);
+}
+
+/* Birds: the species the site was designated for, from its Natura 2000 form, read only when a site is opened. */
+let AVES;
+const SEASON = {p: "todo el año", r: "cría", w: "inverna", c: "en paso"};
+const GRADE = {A: "Más del 15 % de las de España", B: "Entre el 2 y el 15 %", C: "Menos del 2 %",
+  X: "Importantes aquí, sin porcentaje en el formulario", N: "Presentes, sin evaluar en el formulario"};
+async function avesPanel(code, name) {
+  const host = $("#aves-panel");
+  if (!host) return;
+  try { AVES ||= await fetch("datos/aves.json").then(r => r.json()); } catch { return; }
+  const x = AVES.sites[code];
+  if (!x || !host.isConnected) return;
+  const sdf = `https://natura2000.eea.europa.eu/Natura2000/SDF.aspx?site=${encodeURIComponent(code)}`;
+  const item = ([sp, seasons]) => {
+    const [sci, es] = AVES.species[sp];
+    return `<li><span class="ave">${esc(es)}</span>${es !== sci ? ` <i class="meta">${esc(sci)}</i>` : ""}
+      <span class="meta">· ${[...seasons].map(k => SEASON[k]).join(", ") || "época sin indicar"}</span></li>`;
+  };
+  const groups = Object.keys(GRADE).map(g => [g, x.birds.filter(b => b[2] === g)]).filter(([, l]) => l.length);
+  const block = ([g, l]) => {
+    const head = `${GRADE[g]} <span class="meta">· ${l.length} ${l.length === 1 ? "especie" : "especies"}</span>`;
+    const ul = `<ul class="aves-lista">${l.map(item).join("")}</ul>`;
+    // A long tail of small shares is folded, so the species the site matters most for come first.
+    return g !== groups[0][0] && "CN".includes(g) && l.length > 12
+      ? `<details><summary><h3 class="aves-grado">${head}</h3></summary>${ul}</details>`
+      : `<h3 class="aves-grado">${head}</h3>${ul}`;
+  };
+  const other = x.other ? `<p class="meta">Y ${x.other === 1 ? "otra especie presente" : `otras ${x.other} especies presentes`}
+    con una población poco significativa aquí o sin evaluar.</p>` : "";
+  host.hidden = false;
+  host.innerHTML = `<h2 class="sec">Sus aves</h2>
+    <p class="sec-sub">Las especies que da el formulario oficial de ${esc(name)} como ${esc(D.kind)}: qué parte de las que hay en España acoge cada una y en qué época del año.</p>
+    ${groups.length ? groups.map(block).join("") : `<p class="vacio">El formulario no atribuye a este espacio ninguna población significativa de aves.</p>`}
+    ${other}
+    <p class="meta fuente">Formulario normalizado de datos de Natura 2000 (Agencia Europea de Medio Ambiente, ${esc(AVES.version.replace("end", "final de ").replace(" rev1", ""))}), <a href="https://creativecommons.org/licenses/by/4.0/deed.es">CC BY 4.0</a> ·
+      <a href="${sdf}">ficha oficial</a> · <a href="https://doi.org/${esc(AVES.doi)}">datos</a> · nombres en castellano del MITECO · <a href="datos/aves.json">aves.json</a></p>`;
+}
+
+// The round number just above v and the decimals it needs: 0.69 -> 0.8, 3.2 -> 4, 0.21 -> 0.25.
+function redondo(v) {
+  const e = Math.floor(Math.log10(v)), step = 10 ** e;
+  const m = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(k => k * step >= v - 1e-12);
+  return [m * step, Math.max(0, -e + (m % 1 ? 1 : 0) - (m === 10 ? 1 : 0))];
+}
+
+/* Night light: the site's yearly series, read from luz.json only when a site is opened. */
+let LUZ;
+async function luzPanel(code) {
+  const host = $("#luz-panel"), cov = D.sources["black-marble"]?.coverage;
+  if (!host || !cov?.baseline) return;
+  try { LUZ ||= await fetch("datos/luz.json").then(r => r.json()); } catch { return; }
+  const x = LUZ.sites[code];
+  if (!x || !host.isConnected) return;
+  const years = LUZ.years, r = x.radiance, src = `<p class="meta fuente">NASA Black Marble (VIIRS), píxeles de unos 500 m ·
+    <a href="https://doi.org/${esc(LUZ.doi)}">producto</a> · <a href="datos/luz.json">luz.json</a></p>`;
+  host.hidden = false;
+  if (!cov.sites.includes(code)) {
+    host.innerHTML = `<h3>Luz artificial de noche</h3><p class="vacio">Con ${x.pixels} ${x.pixels === 1 ? "píxel" : "píxeles"} de
+      unos 500 m, el espacio es demasiado pequeño o le faltan años para leer una tendencia.</p>${src}`;
+    return;
+  }
+  const [b0, b1] = cov.baseline, mean = a => a.reduce((t, v) => t + v, 0) / a.length;
+  const ref = mean(r.filter((_, i) => years[i] >= b0 && years[i] <= b1)), now = r.slice(-cov.recent);
+  const cur = mean(now), pct = Math.round(100 * (cur / ref - 1)), span = `${years.at(-cov.recent)}-${years.at(-1)}`;
+  const delta = pct === 0 ? "lo mismo" : `un ${Math.abs(pct)} % ${pct > 0 ? "más" : "menos"}`;
+  const caption = i => r[i] == null ? `${years[i]}: sin dato` : `${years[i]}: ${num(r[i], 2)} nW/cm²/sr`;
+  const sig = (bySite.get(code) || []).find(s => s.kind === "night_light"), d = sig?.details;
+  const drift = d && Math.round(100 * (d.expected / d.baseline - 1));
+  const peers = sig
+    ? `En los espacios que eran igual de oscuros ${drift < 0 ? "bajó" : "subió"} un ${Math.abs(drift)} %: aquí hay un ${sig.value.amount} % más luz de la esperable.`
+    : "Cada espacio se compara con los que eran igual de oscuros, porque el producto de la NASA sube y baja de un año a otro en todo el país a la vez.";
+  host.innerHTML = `<h3>Luz artificial de noche</h3>
+    <p style="margin:0 0 6px">Brillo medio en ${span}: <b>${num(cur, 2)}</b> nW/cm²/sr, ${delta} que en ${b0}-${b1}.${pct < 0 ? " Una bajada puede ser solo el cambio a LED, que el satélite apenas ve." : ""} ${peers}</p>
+    <div class="luz-graf"></div>
+    <p class="meta luz-dato" aria-live="polite">${caption(years.length - 1)}</p>
+    <details><summary>Ver los datos</summary><table class="luz-tabla"><thead><tr><th>Año</th><th class="n">nW/cm²/sr</th></tr></thead>
+      <tbody>${years.map((y, i) => `<tr><td>${y}</td><td class="n">${num(r[i], 2)}</td></tr>`).join("")}</tbody></table></details>${src}`;
+  // Drawn at the box's own width (it changes once the map settles), so text and points keep their size.
+  const graf = $(".luz-graf", host), out = $(".luz-dato", host);
+  let drawn = 0;
+  const ro = new ResizeObserver(() => {
+    if (!graf.isConnected) return ro.disconnect();
+    const w = Math.round(graf.clientWidth);
+    if (w && w !== drawn) graf.innerHTML = luzChart(years, r, ref, `${b0}-${b1}`, cur > ref, drawn = w);
+  });
+  ro.observe(graf);
+  const show = i => {
+    const cruz = $(".cruz", graf);
+    for (const p of graf.querySelectorAll(".pt")) p.classList.toggle("on", p.dataset.i === String(i));
+    cruz.setAttribute("x1", cruz.dataset["x" + i]); cruz.setAttribute("x2", cruz.dataset["x" + i]);
+    cruz.style.visibility = "visible";
+    out.textContent = caption(i);
+  };
+  graf.addEventListener("pointerover", e => { if (e.target.dataset.i != null) show(+e.target.dataset.i); });
+  graf.addEventListener("pointerleave", () => {
+    for (const p of graf.querySelectorAll(".pt")) p.classList.remove("on");
+    const cruz = $(".cruz", graf);
+    if (cruz) cruz.style.visibility = "hidden";
+    out.textContent = caption(years.length - 1);
+  });
+}
+function luzChart(years, r, ref, base, above, W) {
+  const H = 120, L = 34, R = 8, T = 10, B = 20;
+  const [top, dec] = redondo(Math.max(ref, ...r.filter(v => v != null)) * 1.05 || 1);
+  const x = i => L + (W - L - R) * (years.length > 1 ? i / (years.length - 1) : .5);
+  const y = v => T + (H - T - B) * (1 - v / top);
+  let d = "", pen = false;
+  r.forEach((v, i) => {
+    if (v == null) { pen = false; return; }
+    d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`;
+    pen = true;
+  });
+  const step = (W - L - R) / Math.max(1, years.length - 1);
+  const xs = years.map((_, i) => `data-x${i}="${x(i).toFixed(1)}"`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Brillo medio de noche en el espacio, de ${years[0]} a ${years.at(-1)}">
+    <line class="eje-l" x1="${L}" x2="${W - R}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>
+    <line class="ref" x1="${L}" x2="${W - R}" y1="${y(ref).toFixed(1)}" y2="${y(ref).toFixed(1)}"/>
+    <text class="eje" x="${W - R}" y="${(y(ref) + (above ? 13 : -5)).toFixed(1)}" text-anchor="end">media ${esc(base)}</text>
+    <text class="eje" x="${L - 6}" y="${(y(top) + 4).toFixed(1)}" text-anchor="end">${num(top, dec)}</text>
+    <text class="eje" x="${L - 6}" y="${(y(0) + 4).toFixed(1)}" text-anchor="end">0</text>
+    <text class="eje" x="${x(0).toFixed(1)}" y="${H - 4}" text-anchor="start">${years[0]}</text>
+    <text class="eje" x="${x(years.length - 1).toFixed(1)}" y="${H - 4}" text-anchor="end">${years.at(-1)}</text>
+    <line class="cruz" ${xs} x1="0" x2="0" y1="${T}" y2="${y(0).toFixed(1)}" style="visibility:hidden"/>
+    <path class="linea" d="${d}"/>
+    ${r.map((v, i) => v == null ? "" : `<circle class="pt" data-i="${i}" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4"/>`).join("")}
+    ${years.map((_, i) => `<rect class="col" data-i="${i}" x="${(x(i) - step / 2).toFixed(1)}" y="${T}" width="${step.toFixed(1)}" height="${(y(0) - T).toFixed(1)}"/>`).join("")}
+  </svg>`;
 }
 
 /* ---------- Municipality ---------- */
@@ -670,11 +816,123 @@ function resumen(n) {
   if (n.open) parts.push(`${n.open} con plazo abierto`);
   if (n.fire_ha) parts.push(`${num(n.fire_ha, 1)} ha quemadas`);
   if (n.land) parts.push(`${n.land} ${n.land === 1 ? "cambio de uso" : "cambios de uso"}`);
+  if (n.light) parts.push(`${n.light} % más luz de noche que otros espacios igual de oscuros`);
   return parts.join(" · ");
 }
 
-function notFound() {
-  $("#vista").innerHTML = `<div class="wrap"><nav class="migas"><a href="#/">Inicio</a></nav><p class="vacio">No encuentro ese lugar.</p></div>`;
+function notFound(what = "ese lugar") {
+  document.title = "Estado de las IBA";
+  $("#vista").innerHTML = `<div class="wrap"><nav class="migas"><a href="#/">Inicio</a></nav><p class="vacio">No encuentro ${esc(what)}.</p></div>`;
+}
+
+/* ---------- Signal ---------- */
+
+// What each kind of signal carries, as label and value, so its page reads the same whoever sent it.
+function datos(s) {
+  const d = s.details || {}, out = [];
+  const add = (k, v) => { if (v != null && v !== "") out.push([k, v]); };
+  if (s.kind === "notice") add("Alegaciones", s.deadline ? (s.deadline >= D.today ? `hasta el ${fecha(s.deadline)} (${dias(s.deadline)})` : `plazo cerrado el ${fecha(s.deadline)}`) : "sin plazo conocido");
+  if (["notice", "resolution"].includes(s.kind)) add("Promotor", esc(d.promoter));
+  if (s.kind === "land_change") {
+    add("Estado", esc(s.status));
+    add("Superficie", `${num(s.value?.amount, 2)} ha`);
+    add("Antes era", esc(d.cover));
+    add("Expediente", esc(d.permit));
+    add("Parcelas catastrales que toca", d.parcels != null ? num(d.parcels) : null);
+    if (d.history?.length) add("Historia", d.history.map(([f, e]) => `${fecha(f)}: ${esc(e)}`).join(" · "));
+  } else if (s.kind === "fire") {
+    add("Superficie", s.value ? `${num(s.value.amount, 1)} ha` : null);
+    add("Provincia", esc(d.province));
+    add("Estado", esc(s.status));
+  } else if (s.kind === "wetland_water") {
+    add("Agua libre", `${num(s.value?.amount, 0)} ha`);
+    add("Lo normal en ese mes", d.ref_ha != null ? `${num(d.ref_ha, 0)} ha (mediana de ${d.ref_years?.[0]}-${d.ref_years?.at(-1)})` : null);
+  } else if (s.kind === "river_flow") {
+    add("Caudal", `${num(s.value?.amount, 2)} m³/s`);
+    add("Caudal mínimo legal", d.minimum != null ? `${num(d.minimum, 2)} m³/s` : null);
+    add("Días por debajo", d.days != null ? `${num(d.days_below)} de ${num(d.days)}` : null);
+  } else if (s.kind === "power_line") {
+    add("Elementos de riesgo alto", num(s.value?.amount));
+  } else if (s.kind === "night_light") {
+    add("Brillo reciente", `${num(d.radiance, 2)} nW/cm²/sr (${d.years?.join("-")})`);
+    add("Brillo en 2012-2014", `${num(d.baseline, 2)} nW/cm²/sr`);
+    add("Esperable, como los igual de oscuros", `${num(d.expected, 2)} nW/cm²/sr`);
+    add("Píxeles VIIRS", num(d.pixels));
+  } else if (s.kind === "migration") {
+    add("Migración prevista", LEVEL[s.status] || esc(s.status));
+  } else {
+    add("Estado", esc(s.status));
+  }
+  if (s.kind !== "night_light") add("Precisión", PRECISION[s.precision]);  // its pixels are VIIRS, said above
+  return out;
+}
+
+async function avisoView(source, id) {
+  const s = D.signals.find(x => x.source === source && x.id === id);
+  if (!s) return notFound("ese aviso");
+  await munis();
+  if (!location.hash.startsWith(aviso(s))) return;  // the reader moved on while the data loaded
+  const d = s.details || {}, src = D.sources[s.source] || {name: s.source};
+  document.title = `${s.title.slice(0, 70)} · Estado de las IBA`;
+  const site = s.sites.length === 1 ? D.sitesByCode[s.sites[0].code] : null;
+  const zepas = s.sites.map(x => `<li><a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>${x.ha != null ? ` <span class="meta">${num(x.ha, x.ha < 10 ? 1 : 0)} ha dentro</span>` : ""}</li>`).join("");
+  const otros = (d.natura || []).filter(([c]) => !D.sitesByCode[c]);
+  const munisHtml = s.municipalities.filter(i => M.byIne[i]).map(i => `<li><a href="#/m/${esc(i)}">${esc(M.byIne[i].name)}</a></li>`).join("");
+  const fotos = d.before && d.after ? `<div class="fotos grandes">
+      <figure><img src="${esc(d.before)}" alt="Antes, ${esc(fecha(d.before_date))}"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
+      <figure><img src="${esc(d.after)}" alt="Después, ${esc(fecha(d.after_date))}"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
+  const original = ["notice", "resolution"].includes(s.kind) ? "Leer el anuncio en el boletín"
+    : s.kind === "night_light" ? "Ver el producto de la NASA" : `Ver en ${src.name}`;
+  $("#vista").innerHTML = `<div class="wrap">
+    <nav class="migas"><a href="#/">Inicio</a> › ${s.regions?.length ? regionLinks(s.regions) + " › " : ""}${site ? `<a href="#/e/${esc(site.code)}">${esc(site.name)}</a> › ` : ""}${esc((KIND[s.kind] || {}).tag || "Aviso")}</nav>
+    <div class="aviso-cab">${tag(s)} <span class="meta">${fecha(s.date)} · según ${esc(src.name)}</span>
+      <h2>${esc(s.title)}</h2></div>
+    <div class="lugar">
+      <div>
+        ${fotos}
+        <div class="lienzo aviso-mapa" id="aviso-mapa" role="region" aria-label="Dónde está"></div>
+        ${MEANS[s.kind] ? `<p class="significa-txt">${esc(MEANS[s.kind])}${s.precision === "municipio" ? " " + esc(PREC_NOTE.municipio) : ""}</p>` : ""}
+        ${s.kind === "night_light" && site ? `<p><a href="#/e/${esc(site.code)}">La serie de 2012 a hoy, en la ficha de ${esc(site.name)}</a></p>` : ""}
+      </div>
+      <aside>
+        <div class="panel"><h3>Datos</h3><dl class="datos">${datos(s).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl></div>
+        <div class="panel"><h3>Dónde</h3>
+          ${zepas ? `<p class="meta" style="margin:0 0 4px">${esc(D.kind)}</p><ul class="lista-simple">${zepas}</ul>`
+            : `<p style="margin:0 0 6px">No cae dentro de ninguna ${esc(D.kind)}.</p>`}
+          ${otros.length ? `<p class="meta" style="margin:8px 0 4px">Otros espacios Natura 2000</p><ul class="lista-simple">${otros.map(([c, n, t]) => `<li>${esc(n || c)} <span class="meta">${esc(t || "")} ${esc(c)}</span></li>`).join("")}</ul>` : ""}
+          ${munisHtml ? `<p class="meta" style="margin:8px 0 4px">Municipios</p><ul class="municipios">${munisHtml}</ul>` : ""}</div>
+        <div class="panel"><h3>De dónde sale</h3>
+          <p style="margin:0 0 6px">${esc(src.name)}${src.watches ? ` vigila ${esc(src.watches)}` : ""}. Aquí se resume; el original tiene todo el detalle.</p>
+          <a class="fuera" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(original)}</a></div>
+        ${hilo([s])}
+      </aside>
+    </div></div>`;
+  window.scrollTo(0, 0);
+  avisoMapa(s);
+}
+
+async function avisoMapa(s) {
+  await shapes();
+  const el = $("#aviso-mapa");
+  if (!el?.isConnected) return;
+  const map = baseMap(el, {scrollWheelZoom: false});
+  const codes = new Set(s.sites.map(x => x.code));
+  const poly = L.geoJSON({type: "FeatureCollection", features: SHAPES.features.filter(f => codes.has(f.properties.code))}, {
+    style: {color: MAP_ACCENT, weight: 2, fillColor: MAP_ACCENT, fillOpacity: .12},
+    onEachFeature: (f, l) => { l.bindTooltip(esc(f.properties.name), {sticky: true}); l.on("click", () => { location.hash = "#/e/" + f.properties.code; }); },
+  }).addTo(map);
+  const ly = LAYERS.find(x => x.kinds.includes(s.kind));
+  // Projects carry no point: they sit at the municipalities they name.
+  const pts = s.details?.point ? [[s.details.point[1], s.details.point[0]]]
+    : s.municipalities.filter(i => M.byIne[i]).map(i => [M.byIne[i].point[1], M.byIne[i].point[0]]);
+  for (const p of pts) {
+    const px = 22;
+    L.marker(p, {icon: L.divIcon({className: "marca", html: icono(ly?.shape || "circle", ly?.color || MAP_ACCENT, px, {stroke: ly?.stroke}),
+      iconSize: [px, px], iconAnchor: [px / 2, px / 2]}), title: s.title, alt: s.title, keyboard: false}).addTo(map);
+  }
+  const b = poly.getBounds();
+  for (const p of pts) b.extend(p);
+  if (b.isValid()) map.fitBounds(b, {padding: [24, 24], maxZoom: pts.length && !codes.size ? 13 : 14});
 }
 
 /* ---------- Router ---------- */
@@ -684,12 +942,13 @@ function route() {
   MAPS = [];
   capa = null;
   const h = location.hash.replace(/^#\/?/, "");
-  const [kind, id] = h.split("/");
+  const [kind, id, more] = h.split("/");
   document.body.classList.toggle("en-lugar", Boolean(kind));  // away from home the header shrinks to its title
   if (kind === "e" && id) return siteView(decodeURIComponent(id));
   if (kind === "m" && id) return muniView(decodeURIComponent(id));
   if (kind === "ca" && id) return regionView(decodeURIComponent(id));
   if (kind === "plazos") return plazos();
+  if (kind === "a" && id && more) return avisoView(decodeURIComponent(id), decodeURIComponent(more));
   if (/^ES[0-9A-Z]{7}$/.test(h)) { location.replace("#/e/" + h); return; }  // old v1 anchors
   home();
 }
@@ -707,3 +966,9 @@ fetch("datos/hub.json").then(r => r.json()).then(data => {
   window.addEventListener("hashchange", route);
   route();
 });
+
+// A link to another site opens in a new tab: the reader never loses their place here.
+document.addEventListener("click", e => {
+  const a = e.target.closest?.("a[href]");
+  if (a && a.origin !== location.origin && !a.target) { a.target = "_blank"; a.rel = "noopener"; }
+}, true);

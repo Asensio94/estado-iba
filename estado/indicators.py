@@ -118,6 +118,8 @@ def summary(sites: dict[str, dict], signals: list[dict], coverage: dict[str, dic
             if _watched(coverage.get("centinela-natura"), code) else None,
             "lines": sum(s["value"]["amount"] for s, _ in items if s["kind"] == "power_line")
             if _watched(coverage.get("riesgo-tendidos-aves"), code) else None,
+            "light": max((s["value"]["amount"] for s, _ in items if s["kind"] == "night_light"), default=0)
+            if _watched(coverage.get("black-marble"), code) else None,
             "flow": sum(s["kind"] == "river_flow" for s, _ in items),
             "water": min(water, default=None),
         }

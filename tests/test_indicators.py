@@ -51,12 +51,15 @@ def test_summary_counts_and_tells_unwatched_from_quiet():
         _sig("land_change", [{"code": "ES1"}], "pixeles"),
         _sig("wetland_water", [{"code": "ES2"}], "lamina", ratio=0.4, current=True),
         _sig("wetland_water", [{"code": "ES2"}], "lamina", ratio=0.1, current=False),
+        _sig("night_light", [{"code": "ES1"}], "pixeles", value={"amount": 42, "unit": "%"}),
     ]
-    coverage = {"centinela-natura": {"sites": ["ES1"]}, "riesgo-tendidos-aves": {"sites": None}}
+    coverage = {"centinela-natura": {"sites": ["ES1"]}, "riesgo-tendidos-aves": {"sites": None},
+                "black-marble": {"sites": ["ES1"]}}
     n = I.summary(sites, signals, coverage, date(2026, 10, 9))
     assert n["ES1"] == {"notices": 2, "precise": 1, "open": 1, "resolutions": 1, "fires": 1, "fire_ha": 12.5,
-                        "land": 1, "lines": 0, "flow": 0, "water": None}
+                        "land": 1, "lines": 0, "light": 42, "flow": 0, "water": None}
     assert n["ES2"]["land"] is None  # centinela does not watch ES2: unknown, not zero
+    assert n["ES2"]["light"] is None  # too small to judge, say: not «no rise»
     assert n["ES2"]["lines"] == 0 and n["ES2"]["fire_ha"] == 0
     assert n["ES2"]["water"] == 0.4  # an outdated observation does not count
 

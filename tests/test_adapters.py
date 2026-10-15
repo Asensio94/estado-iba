@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import date
 
 import pytest
@@ -53,10 +54,24 @@ def test_vigia_prefers_sentinel2_and_respects_window():
     assert by["F2"]["precision"] == "focos" and by["F2"]["value"] == {"amount": 14, "unit": "ha"}
 
 
+def test_a_measured_burnt_area_decides_the_sites():
+    focos = [{"codigo": "ES1", "ha": 14}]
+    clear = {"natura": focos, "ha_focos": 14}
+    # Sentinel-2 saw it all and none of it burnt inside ES1: the hot pixels no longer count.
+    assert A.fire_sites(clear, {"ha": 3.0, "natura": []}) == ([], "perimetro", 3.0, "provisional")
+    # Under clouds the burnt area is a lower bound: ES1 stays, without hectares.
+    assert A.fire_sites(clear, {"ha": 3.0, "nublado": True, "natura": [{"codigo": "ES2", "ha": 3.0}]})[0] ==         [{"code": "ES2", "ha": 3.0}, {"code": "ES1"}]
+    # Clouds hid everything, or no area yet: nothing was measured.
+    for s2 in ({"ha": 0, "nublado": True, "natura": []}, {"natura": []}):
+        assert A.fire_sites(clear, s2) == ([{"code": "ES1", "ha": 14}], "focos", 14, None)
+
+
 def test_centinela_keeps_live_states_and_flips_point():
     fc = {"features": [
         {"properties": {"id": "C1", "estado": "confirmada", "detectada": "2026-06-01", "ha": 2.0,
-                        "espacios": [{"codigo": "ES1"}], "centro": [43.3, -4.0], "foto_antes": "f/a.jpg"}},
+                        "espacios": [{"codigo": "ES1", "nombre": "Uno", "tipo": "ZEC"}], "centro": [43.3, -4.0],
+                        "foto_antes": "f/a.jpg", "cubierta_previa": {"codigo": "322", "nombre": "landas y matorral"},
+                        "historial": [{"fecha": "2026-06-01", "estado": "provisional"}]}},
         {"properties": {"id": "C2", "estado": "descartada", "detectada": "2026-06-02", "ha": 3.0,
                         "espacios": [{"codigo": "ES1"}]}},
     ]}
@@ -64,6 +79,9 @@ def test_centinela_keeps_live_states_and_flips_point():
     assert [s["id"] for s in out] == ["C1"]
     assert out[0]["details"]["point"] == [-4.0, 43.3]
     assert out[0]["details"]["before"].endswith("/centinela-natura/f/a.jpg")
+    assert out[0]["details"]["cover"] == "landas y matorral"
+    assert out[0]["details"]["history"] == [["2026-06-01", "provisional"]]
+    assert out[0]["details"]["natura"] == [["ES1", "Uno", "ZEC"]]
     assert cov["sites"] == ["ES1", "ES2"]
 
 
@@ -124,11 +142,21 @@ def test_subnocte_takes_first_spanish_night_and_names_levels():
 
 
 def test_tendidos_counts_top_risk_inside_each_site():
-    rows = [{"lon": "0.5", "lat": "0.5", "risk_max": "9"}, {"lon": "0.5", "lat": "0.5", "risk_max": "8"}]
-    rows += [{"lon": "3", "lat": "3", "risk_max": str(i)} for i in range(8)] + [{"lon": "3", "lat": "3", "risk_max": ""}]
+    rows = [{"type": "turbine", "lon": "0.5", "lat": "0.5", "risk_max": "19"},
+            {"type": "pylon", "lon": "0.5", "lat": "0.5", "risk_max": "18"}]
+    rows += [{"type": "pylon", "lon": "3", "lat": "3", "risk_max": str(i)} for i in range(18)]
+    rows += [{"type": "pylon", "lon": "3", "lat": "3", "risk_max": ""}]
     cov, out = A.tendidos({"cantabria": (rows, "2026-10-01")}, {"ES1": box(0, 0, 1, 1), "ES9": box(8, 8, 9, 9)})
-    assert [(s["sites"], s["value"]["amount"]) for s in out] == [([{"code": "ES1"}], 1)]
+    assert [(s["sites"], s["value"]["amount"]) for s in out] == [([{"code": "ES1"}], 2)]
+    assert out[0]["title"] == "1 aerogenerador y 1 apoyo de riesgo alto para las aves dentro del espacio"
+    assert out[0]["url"].endswith("/riesgo-tendidos-aves/cantabria/sites/ES1.es.html")  # exactly its elements
     assert cov["sites"] == ["ES1"]  # ES9 lies outside the modelled region
+
+
+def test_titles_name_wind_turbines_first():
+    assert A.elements(Counter(pylon=40, line=2, turbine=3)) == "3 aerogeneradores, 40 apoyos y 2 tramos de línea"
+    assert A.elements(Counter(line=1)) == "1 tramo de línea"
+    assert A.elements(Counter(pylon=2, substation=1)) == "2 apoyos y 1 otro elemento"
 
 
 def _doc(signals, source="s", version=1):
@@ -191,3 +219,38 @@ def test_published_keeps_flood_counts_by_municipality_and_drops_zeros():
 def test_unpublished_sibling_contributes_nothing():
     cov, out = A.unpublished("Toda España")
     assert out == [] and cov["sites"] == [] and cov["label"] == "Toda España"
+
+
+def _light(**sites):
+    return {"doi": "10.5067/VIIRS/VNP46A4.002", "years": [2012, 2013, 2014, 2015, 2024, 2025],
+            "sites": {c: {"pixels": px, "radiance": r} for c, (px, r) in sites.items()}}
+
+
+def test_night_light_signals_rises_over_sites_as_dark_as_they_were():
+    flat = lambda ref, cur: [ref] * 4 + [cur] * 2  # noqa: E731
+    doc = _light(Z0=(50, flat(0.0, 0.3)),  # no light at all before: no share of nothing
+                 ES2=(50, [0.2, 0.2, 0.2, 0.3, 0.35, 0.35]),  # +75 %, but only 0.05 over its peers: noise
+                 P1=(50, flat(0.9, 1.35)), P2=(50, flat(1.0, 1.5)), P3=(50, flat(1.2, 1.8)),
+                 P4=(50, flat(1.3, 1.95)),  # the product drifts: every site this dark reads 50 % brighter
+                 ES1=(50, [1.05, 1.05, 1.05, 1.2, 2.1, 2.1]),  # +100 %, a third over its peers
+                 ES6=(50, flat(1.1, 1.76)),  # +60 %, the drift and little more
+                 ES3=(50, [2.0, 2.0, 2.0, 1.0, 1.0, 1.0]),  # a fall: maybe just LEDs
+                 ES4=(2, flat(1.0, 3.0)),  # two pixels: too few to judge
+                 ES5=(50, [1.0, None, 1.0, 1.0, 2.0, 2.0]))  # a year without data in the baseline
+    shapes = {c: box(0, 0, 1, 1) for c in doc["sites"]}
+    cov, out = A.luz(doc, shapes, (2012, 2014), 2, 0.25, 0.2, 4, 2)
+    assert cov["sites"] == ["ES1", "ES2", "ES3", "ES6", "P1", "P2", "P3", "P4", "Z0"] and "2012-2025" in cov["note"]
+    assert [s["id"] for s in out] == ["ES1"]
+    s = out[0]
+    assert s["title"] == ("La luz artificial de noche ha subido un 100 % desde 2012-2014; "
+                          "en los espacios igual de oscuros, subió un 50 %")
+    assert (s["date"], s["value"], s["precision"]) == ("2025-12-31", {"amount": 33, "unit": "%"}, "pixeles")
+    d = s["details"]
+    assert d["years"] == [2024, 2025] and (d["baseline"], d["radiance"]) == (1.05, 2.1)
+    assert d["expected"] == pytest.approx(1.575, abs=0.01)
+    assert s["url"] == "https://doi.org/10.5067/VIIRS/VNP46A4.002"
+
+    doc = _light(A=(50, flat(1.0, 0.8)), B=(50, flat(1.1, 0.88)), C=(50, flat(1.2, 1.5)))
+    _, out = A.luz(doc, {c: box(0, 0, 1, 1) for c in doc["sites"]}, (2012, 2014), 2, 0.25, 0.2, 4, 2)
+    assert [s["title"] for s in out] == ["La luz artificial de noche ha subido un 25 % desde 2012-2014; "
+                                         "en los espacios igual de oscuros, bajó un 20 %"]
