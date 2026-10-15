@@ -14,6 +14,8 @@ Casi nada lo mide por sí mismo: cada día reúne lo que ya publican los proyect
 
 Por ahora la unidad son las **ZEPA** de la Red Natura 2000, que son datos abiertos: 658 espacios, incluidos los que son a la vez ZEC y ZEPA. Las IBA de SEO/BirdLife sustituirán a las ZEPA cuando su reutilización esté acordada. El código no depende de la capa: basta con cambiar `SITES_URL` y `SITE_KIND` en `estado/config.py`, siempre que los proyectos hermanos crucen con los mismos códigos.
 
+> **Estado: activo.** Se actualiza solo y sigue en desarrollo.
+
 ## Qué se puede hacer en la web
 
 - **Verlo todo en un mapa.** La portada tiene un mapa de España con una capa por proyecto hermano, que se enciende y se apaga en la leyenda. Los espacios se colorean según el indicador que se elija.
