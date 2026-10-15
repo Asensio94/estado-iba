@@ -100,6 +100,22 @@ p.sec-sub{margin:0 0 12px;color:var(--muted);font-size:15px}
 .lugar{display:grid;grid-template-columns:minmax(0,3fr) minmax(280px,2fr);gap:28px;margin:18px 0 32px}
 .lugar>aside{display:grid;gap:18px;align-content:start}
 .panel{background:var(--paper);border:1px solid var(--line);padding:14px}
+.luz-graf{min-height:120px;margin:4px 0 2px}
+.luz svg{display:block;width:100%;height:auto;touch-action:pan-y}
+.luz .linea{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round}
+.luz .pt{fill:var(--paper);stroke:var(--ink);stroke-width:2}
+.luz .pt.on{fill:var(--ink)}
+.luz .ref{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3}
+.luz .eje-l{stroke:var(--line);stroke-width:1}
+.luz .cruz{stroke:var(--muted);stroke-width:1}
+.luz .eje{fill:var(--muted);font:11px var(--font-data)}
+.luz .col{fill:transparent;cursor:crosshair}
+.luz .luz-dato{margin:0 0 6px;font-family:var(--font-data)}
+.luz details{margin:0 0 6px}
+.luz-tabla{border-collapse:collapse;font:12px var(--font-data);margin-top:4px}
+.luz-tabla th,.luz-tabla td{padding:1px 10px 1px 0;text-align:left}
+.luz-tabla .n{text-align:right}
+.luz .fuente{margin:0}
 .panel h3{margin:0 0 8px;font:600 16px/1.2 var(--font-title);text-transform:uppercase;letter-spacing:.08em}
 .actuar{border:1.5px solid var(--accent);background:var(--paper);padding:14px 16px;margin-bottom:22px}
 .actuar h3{margin:0 0 4px;font:700 20px/1.1 var(--font-title);text-transform:uppercase;color:var(--accent)}
@@ -110,6 +126,17 @@ p.sec-sub{margin:0 0 12px;color:var(--muted);font-size:15px}
 .fotos figure{margin:0}
 .fotos img{width:100%;aspect-ratio:1;object-fit:cover;display:block;border:1px solid var(--line);background:var(--ground)}
 .fotos figcaption{font:12px var(--font-data);color:var(--muted)}
+.fotos.grandes{margin:0 0 14px;gap:10px}
+.aviso-cab{margin:18px 0 0}
+.aviso-cab h2{font:700 clamp(24px,3.2vw,36px)/1.08 var(--font-title);margin:8px 0 0;max-width:62ch}
+.aviso-mapa{height:340px;border:1px solid var(--line)}
+.significa-txt{color:var(--muted);font-size:15px;max-width:62ch}
+dl.datos{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+dl.datos dt{color:var(--muted);font-size:14px}
+dl.datos dd{margin:0;font-size:15px}
+.lista-simple{margin:0;padding-left:18px}
+.lista-simple li{margin:2px 0}
+a.fuera::after{content:" ↗"}
 .significa summary{cursor:pointer;font-size:13.5px;color:var(--muted)}
 .significa p{margin:4px 0 0;font-size:14px}
 .vacio{color:var(--muted);font-size:15px;margin:0}
@@ -129,6 +156,20 @@ p.sec-sub{margin:0 0 12px;color:var(--muted);font-size:15px}
   .capas{border-left:0;border-top:1px solid var(--line)}
   .ranking{max-height:70vh}
 }
+@media (max-width:480px){
+  table.params th{white-space:normal}  /* the longest names would push the page sideways on a phone */
+}
 
 /* Away from home: the place is the page, the national lede and figures stay on the home page. */
 .en-lugar .site-header .lede, .en-lugar .site-header .aviso-unidad, .en-lugar .site-header .figures { display: none; }
+
+/* Birds of a site */
+section.aves{margin:28px 0}
+.aves-grado{font:600 14px/1.2 var(--font-title);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 6px;display:inline}
+.aves details{margin:16px 0 0}
+.aves details summary{cursor:pointer}
+.aves > .aves-grado{display:block}
+.aves-lista{list-style:none;margin:6px 0 0;padding:0;columns:2 260px;column-gap:24px}
+.aves-lista li{break-inside:avoid;padding:3px 0;border-bottom:1px solid var(--line);font-size:15px;line-height:1.35}
+.aves-lista i.meta{font-style:italic}
+.aves .fuente{margin:14px 0 0}

@@ -9,7 +9,9 @@ Municipality names are resolved to INE codes with `resolve`, a callable
 from __future__ import annotations
 
 import re
+import statistics
 import sys
+from collections import Counter
 from datetime import date, timedelta
 from typing import Callable
 
@@ -43,7 +45,7 @@ def _munis(resolve: Resolve, names: list[str] | None, provinces: list[str] | Non
 
 
 KINDS = {"notice", "resolution", "fire", "land_change", "wetland_water", "river_flow", "power_line", "migration",
-         "flood_building", "wastewater", "bathing_water"}
+         "flood_building", "night_light", "wastewater", "bathing_water"}
 REQUIRED = ("id", "kind", "date", "title", "url", "precision")
 COUNTS = {"flood_building"}  # stock counts per place: a zero is «nothing to report», not a signal
 
@@ -124,12 +126,28 @@ def observatorio(state: dict, resolve: Resolve) -> tuple[dict, list[dict]]:
     return cov, out
 
 
-def vigia(fc: dict, resolve: Resolve, today: date, window_days: int) -> tuple[dict, list[dict]]:
-    """Fires of the last window_days, with the hectares inside each Natura site.
+def fire_sites(p: dict, s2: dict) -> tuple[list[dict], str, float | None, str | None]:
+    """The sites a fire burns in, how they were found, its hectares and the state of its perimeter.
 
-    The Sentinel-2 burnt area is used when vigía has it; otherwise the extent of the hot pixels,
-    which overstates small fires (a 1 ha fire lights a 14 ha VIIRS pixel).
+    As on the fire's own page in vigía: once Sentinel-2 has measured the burnt area, the fire is
+    in the sites that area reaches and in no other, even if its hot pixels touched one. Under
+    clouds the area is only a lower bound, so the sites of the hot pixels are not ruled out and
+    stay, without hectares. A perimeter with no area yet, or clouded out entirely, measured
+    nothing: the hot pixels decide, and they overstate small fires (a 1 ha fire lights a 14 ha
+    VIIRS pixel).
     """
+    measured = s2.get("ha") is not None and not (s2.get("nublado") and not s2["ha"])
+    if not measured:
+        return [{"code": n["codigo"], "ha": n.get("ha")} for n in p.get("natura") or []], "focos", p.get("ha_focos"), None
+    sites = [{"code": n["codigo"], "ha": n.get("ha")} for n in s2.get("natura") or []]
+    if s2.get("nublado"):
+        burnt = {x["code"] for x in sites}
+        sites += [{"code": n["codigo"]} for n in p.get("natura") or [] if n["codigo"] not in burnt]
+    return sites, "perimetro", s2["ha"], "definitivo" if s2.get("definitivo") else "provisional"
+
+
+def vigia(fc: dict, resolve: Resolve, today: date, window_days: int) -> tuple[dict, list[dict]]:
+    """Fires of the last window_days, with the hectares inside each Natura site (see fire_sites)."""
     since = (today - timedelta(days=window_days)).isoformat()
     out = []
     for f in fc["features"]:
@@ -137,17 +155,14 @@ def vigia(fc: dict, resolve: Resolve, today: date, window_days: int) -> tuple[di
         day = p["primera"][:10]
         if day < since:
             continue
-        s2 = p.get("perimetro_s2") or {}
-        natura, precision = (s2["natura"], "perimetro") if s2.get("natura") else (p.get("natura") or [], "focos")
+        sites, precision, ha, status = fire_sites(p, p.get("perimetro_s2") or {})
         place = p.get("lugar") or {}
-        ha = s2.get("ha") if s2.get("natura") else p.get("ha_focos")
         out.append(_signal("vigia-incendios", p["id"], "fire", day,
                            f"Incendio en {place.get('municipio') or 'lugar sin identificar'}",
-                           f"{config.PAGES}/vigia-incendios/#{p['id']}", precision,
-                           sites=[{"code": n["codigo"], "ha": n.get("ha")} for n in natura],
+                           f"{config.PAGES}/vigia-incendios/#{p['id']}", precision, sites=sites,
                            municipalities=_munis(resolve, [place["municipio"]] if place.get("municipio") else [],
                                                  [place.get("provincia")] if place.get("provincia") else []),
-                           status="definitivo" if s2.get("definitivo") else "provisional" if s2 else None,
+                           status=status,
                            value={"amount": ha, "unit": "ha"} if ha else None,
                            province=place.get("provincia"), point=p.get("centro")))
     cov = {"label": "Toda España", "sites": None,
@@ -172,6 +187,12 @@ def centinela(fc: dict, watched: list[str], resolve: Resolve, states: set[str]) 
                            before=base + p["foto_antes"] if p.get("foto_antes") else None,
                            after=base + p["foto_despues"] if p.get("foto_despues") else None,
                            before_date=p.get("fecha_antes"), after_date=p.get("fecha_despues"),
+                           cover=(p.get("cubierta_previa") or {}).get("nombre"),
+                           history=[[h["fecha"], h["estado"]] for h in p.get("historial") or []],
+                           parcels=p.get("n_parcelas"),
+                           # Centinela also watches the ZEC, which this panel does not draw: named here so an
+                           # alert outside every ZEPA still says which Natura 2000 site it falls in.
+                           natura=[[e["codigo"], e.get("nombre"), e.get("tipo")] for e in p.get("espacios") or []],
                            point=p["centro"][::-1] if p.get("centro") else None))  # centinela stores [lat, lon]
     cov = {"label": "Cantabria", "sites": sorted(watched),
            "note": "Cambios de vegetación con Sentinel-2, revisados cada mes."}
@@ -306,9 +327,23 @@ def subnocte(forecast: list[dict], resolve: Resolve, today: date) -> tuple[dict,
     return cov, out
 
 
+# How a title names each element type of the ranking, wind turbines first: they are the main point.
+ELEMENTS = (("turbine", "aerogenerador", "aerogeneradores"), ("pylon", "apoyo", "apoyos"),
+            ("line", "tramo de línea", "tramos de línea"))
+
+
+def elements(count: Counter) -> str:
+    """A count by element type in one Spanish phrase, wind turbines first: "3 aerogeneradores, 40 apoyos y 1 tramo
+    de línea". A type the ranking does not write today still counts, as "otros elementos"."""
+    known = [(count.get(t, 0), one, many) for t, one, many in ELEMENTS]
+    known.append((sum(count.values()) - sum(n for n, _, _ in known), "otro elemento", "otros elementos"))
+    parts = [f"{n} {one if n == 1 else many}" for n, one, many in known if n]
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " y " + parts[-1]
+
+
 def tendidos(regions: dict[str, tuple[list[dict], str]], shapes: dict, high_share: float = 0.1
              ) -> tuple[dict, list[dict]]:
-    """High-risk pylons and spans inside each site, per modelled region.
+    """High-risk wind turbines, pylons and line segments inside each site, per modelled region.
 
     High risk is the top high_share of risk_max within the region. Only counts are published: the
     per-element species lists stay in the source project.
@@ -323,18 +358,75 @@ def tendidos(regions: dict[str, tuple[list[dict], str]], shapes: dict, high_shar
         lons, lats = [float(r["lon"]) for r in rows], [float(r["lat"]) for r in rows]
         watched |= {codes[i] for i in tree.query(box(min(lons), min(lats), max(lons), max(lats)), predicate="intersects")}
         cut = sorted(float(r["risk_max"]) for r in rows)[int(len(rows) * (1 - high_share))]
-        count: dict[str, int] = {}
+        count: dict[str, Counter] = {}
         for r in rows:
             if float(r["risk_max"]) >= cut:
                 for i in tree.query(Point(float(r["lon"]), float(r["lat"])), predicate="intersects"):
-                    count[codes[i]] = count.get(codes[i], 0) + 1
-        for code, n in count.items():
+                    count.setdefault(codes[i], Counter())[r.get("type")] += 1
+        for code, kinds in count.items():
+            n = sum(kinds.values())
             c = shapes[code].representative_point()  # the count belongs to the site, not to any one pylon
             out.append(_signal("riesgo-tendidos-aves", f"{region}-{code}", "power_line", day,
-                               f"{n} apoyos y vanos de riesgo alto para las aves dentro del espacio",
-                               f"{config.PAGES}/riesgo-tendidos-aves/{region}/map.es.html", "punto",
+                               f"{elements(kinds)} de riesgo alto para las aves dentro del espacio",
+                               # the site's own page: the region's map only draws its top elements
+                               f"{config.PAGES}/riesgo-tendidos-aves/{region}/sites/{code}.es.html", "punto",
                                sites=[{"code": code}], value={"amount": n, "unit": "elementos"}, region=region,
                                point=[round(c.x, 4), round(c.y, 4)]))
     cov = {"label": "Cantabria y el Estrecho", "sites": sorted(watched),
-           "note": "Riesgo de electrocución y colisión de cada apoyo y vano de OpenStreetMap, modelado cada mes."}
+           "note": "Riesgo de colisión y electrocución de cada aerogenerador, apoyo y tramo de línea de "
+                   "OpenStreetMap, modelado cada mes."}
+    return cov, out
+
+
+def luz(doc: dict, shapes: dict, baseline: tuple[int, int], recent: int, min_rise: float, min_abs: float,
+        min_pixels: int, peers: int) -> tuple[dict, list[dict]]:
+    """Sites where artificial light at night has grown more than in sites as dark as they were (NASA Black Marble).
+
+    «Before» is the mean of the baseline years and «now» the mean of the last `recent` ones, so one
+    odd year makes no signal. The product drifts from year to year across the whole country at once
+    (in 2025 nearly every dark site reads brighter), and the drift depends on how dark a site is. So
+    each site is set against the `peers` sites on each side of it in baseline brightness: what it
+    would read now had it changed like their median is what it is held to, by min_rise and by min_abs.
+
+    Only rises count: VIIRS does not see the blue of white LEDs, so a town that swaps sodium lamps
+    for LEDs reads darker without being so, while a rise is, if anything, short. A site of fewer than
+    min_pixels pixels is not judged, and neither is one with no light at all in the baseline: there is
+    no share of nothing.
+    """
+    years = doc["years"]
+    before = [i for i, y in enumerate(years) if baseline[0] <= y <= baseline[1]]
+    now = [i for i in range(len(years))[-recent:] if i not in before]
+    level: dict[str, tuple[float, float]] = {}
+    for code, s in doc["sites"].items():
+        r = s["radiance"]
+        if code not in shapes or s["pixels"] < min_pixels or not before or len(now) < recent \
+                or any(r[i] is None for i in before + now):
+            continue
+        level[code] = (sum(r[i] for i in before) / len(before), sum(r[i] for i in now) / len(now))
+    order = sorted(level, key=lambda c: level[c][0])
+    out = []
+    for i, code in enumerate(order):
+        ref, cur = level[code]
+        near = [level[o] for o in order[max(0, i - peers):i + peers + 1] if o != code and level[o][0] > 0]
+        if ref <= 0 or not near:
+            continue
+        drift = statistics.median(c / r for r, c in near)
+        expected = ref * drift
+        if cur - expected < min_abs or cur / expected - 1 < min_rise:
+            continue
+        pct, common, over = (round(100 * (x - 1)) for x in (cur / ref, drift, cur / expected))
+        them = f"subió un {common} %" if common >= 0 else f"bajó un {-common} %"
+        c = shapes[code].representative_point()
+        out.append(_signal("black-marble", code, "night_light", f"{years[-1]}-12-31",
+                           f"La luz artificial de noche ha subido un {pct} % desde {baseline[0]}-{baseline[1]}; "
+                           f"en los espacios igual de oscuros, {them}", f"https://doi.org/{doc['doi']}", "pixeles",
+                           sites=[{"code": code}], value={"amount": over, "unit": "%"},
+                           radiance=round(cur, 2), baseline=round(ref, 2), expected=round(expected, 2),
+                           pixels=doc["sites"][code]["pixels"], years=[years[now[0]], years[now[-1]]],
+                           point=[round(c.x, 4), round(c.y, 4)]))
+    span = f"{years[0]}-{years[-1]}" if years else "sin años todavía"
+    cov = {"label": "Toda España", "sites": sorted(level), "baseline": list(baseline), "recent": recent,
+           "note": f"Brillo medio de noche de los píxeles VIIRS de cada espacio, un dato por año ({span}), comparado "
+                   "con los espacios que eran igual de oscuros. Solo se avisa de las subidas: el sensor no ve bien "
+                   "la luz azul de los LED blancos."}
     return cov, out

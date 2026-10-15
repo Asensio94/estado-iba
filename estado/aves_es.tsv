@@ -1,0 +1,268 @@
+code	scientific	name_es	from
+A001	Gavia stellata	Colimbo chico	lesrpe
+A002	Gavia arctica	Colimbo ártico	lesrpe
+A003	Gavia immer	Colimbo grande	lesrpe
+A004	Tachybaptus ruficollis	Zampullín común	atlas
+A005	Podiceps cristatus	Somormujo lavanco	atlas
+A007	Podiceps auritus	Zampullín cuellirrojo	lesrpe
+A008	Podiceps nigricollis	Zampullín cuellinegro	atlas
+A009	Fulmarus glacialis	Fulmar boreal	lesrpe
+A013	Puffinus puffinus	Pardela pichoneta	atlas
+A014	Hydrobates pelagicus	Paíño europeo	lesrpe
+A016	Morus bassanus	Alcatraz atlántico	lesrpe
+A018	Phalacrocorax aristotelis	Cormorán moñudo	atlas
+A021	Botaurus stellaris	Avetoro común	atlas
+A022	Ixobrychus minutus	Avetorillo común	atlas
+A023	Nycticorax nycticorax	Martinete común	atlas
+A024	Ardeola ralloides	Garcilla cangrejera	atlas
+A025	Bubulcus ibis	Garcilla bueyera	atlas
+A026	Egretta garzetta	Garceta común	atlas
+A028	Ardea cinerea	Garza real	atlas
+A029	Ardea purpurea	Garza imperial	atlas
+A030	Ciconia nigra	Cigüeña negra	atlas
+A031	Ciconia ciconia	Cigüeña blanca	atlas
+A032	Plegadis falcinellus	Morito común	atlas
+A034	Platalea leucorodia	Espátula común	atlas
+A041	Anser albifrons	Ánsar careto	a mano
+A043	Anser anser	Ánsar común	a mano
+A045	Branta leucopsis	Barnacla cariblanca	lesrpe
+A048	Tadorna tadorna	Tarro blanco	atlas
+A052	Anas crecca	Cerceta común	atlas
+A053	Anas platyrhynchos	Ánade azulón	atlas
+A054	Anas acuta	Ánade rabudo	atlas
+A057	Marmaronetta angustirostris	Cerceta pardilla	atlas
+A058	Netta rufina	Pato colorado	atlas
+A059	Aythya ferina	Porrón europeo	atlas
+A060	Aythya nyroca	Porrón pardo	atlas
+A061	Aythya fuligula	Porrón moñudo	atlas
+A069	Mergus serrator	Serreta mediana	a mano
+A071	Oxyura leucocephala	Malvasía cabeciblanca	atlas
+A072	Pernis apivorus	Abejero europeo	atlas
+A073	Milvus migrans	Milano negro	atlas
+A074	Milvus milvus	Milano real	atlas
+A076	Gypaetus barbatus	Quebrantahuesos	atlas
+A077	Neophron percnopterus	Alimoche común	atlas
+A078	Gyps fulvus	Buitre leonado	atlas
+A079	Aegypius monachus	Buitre negro	atlas
+A080	Circaetus gallicus	Culebrera europea	atlas
+A081	Circus aeruginosus	Aguilucho lagunero occidental	atlas
+A082	Circus cyaneus	Aguilucho pálido	atlas
+A084	Circus pygargus	Aguilucho cenizo	atlas
+A085	Accipiter gentilis	Azor común	atlas
+A087	Buteo buteo	Busardo ratonero	atlas
+A091	Aquila chrysaetos	Águila real	atlas
+A092	Hieraaetus pennatus	Aguililla calzada	atlas
+A093	Hieraaetus fasciatus	Águila-azor perdicera	atlas
+A094	Pandion haliaetus	Águila pescadora	atlas
+A095	Falco naumanni	Cernícalo primilla	atlas
+A096	Falco tinnunculus	Cernícalo vulgar	atlas
+A097	Falco vespertinus	Cernícalo patirrojo	lesrpe
+A098	Falco columbarius	Esmerejón	lesrpe
+A099	Falco subbuteo	Alcotán europeo	atlas
+A100	Falco eleonorae	Halcón de Eleonora	atlas
+A101	Falco biarmicus	Halcón borní	a mano
+A103	Falco peregrinus	Halcón peregrino	atlas
+A111	Alectoris barbara	Perdiz moruna	atlas
+A113	Coturnix coturnix	Codorniz común	atlas
+A118	Rallus aquaticus	Rascón europeo	atlas
+A119	Porzana porzana	Polluela pintoja	lesrpe
+A123	Gallinula chloropus	Gallineta común	atlas
+A125	Fulica atra	Focha común	atlas
+A126	Fulica cristata	Focha moruna	atlas
+A127	Grus grus	Grulla común	lesrpe
+A128	Tetrax tetrax	Sisón común	atlas
+A129	Otis tarda	Avutarda común	atlas
+A130	Haematopus ostralegus	Ostrero euroasiático	atlas
+A131	Himantopus himantopus	Cigüeñuela común	atlas
+A132	Recurvirostra avosetta	Avoceta común	atlas
+A133	Burhinus oedicnemus	Alcaraván común	atlas
+A134	Cursorius cursor	Corredor sahariano	atlas
+A135	Glareola pratincola	Canastera común	atlas
+A136	Charadrius dubius	Chorlitejo chico	atlas
+A137	Charadrius hiaticula	Chorlitejo grande	lesrpe
+A138	Charadrius alexandrinus	Chorlitejo patinegro	atlas
+A140	Pluvialis apricaria	Chorlito dorado europeo	lesrpe
+A141	Pluvialis squatarola	Chorlito gris	lesrpe
+A142	Vanellus vanellus	Avefría europea	atlas
+A143	Calidris canutus	Correlimos gordo	lesrpe
+A144	Calidris alba	Correlimos tridáctilo	lesrpe
+A145	Calidris minuta	Correlimos menudo	lesrpe
+A146	Calidris temminckii	Correlimos de Temminck	lesrpe
+A147	Calidris ferruginea	Correlimos zarapitín	lesrpe
+A148	Calidris maritima	Correlimos oscuro	lesrpe
+A149	Calidris alpina	Correlimos común	lesrpe
+A152	Lymnocryptes minimus	Agachadiza chica	a mano
+A153	Gallinago gallinago	Agachadiza común	atlas
+A155	Scolopax rusticola	Chocha perdiz	atlas
+A156	Limosa limosa	Aguja colinegra	lesrpe
+A157	Limosa lapponica	Aguja colipinta	lesrpe
+A158	Numenius phaeopus	Zarapito trinador	lesrpe
+A160	Numenius arquata	Zarapito real	lesrpe
+A161	Tringa erythropus	Archibebe oscuro	lesrpe
+A162	Tringa totanus	Archibebe común	atlas
+A163	Tringa stagnatilis	Archibebe fino	lesrpe
+A164	Tringa nebularia	Archibebe claro	lesrpe
+A165	Tringa ochropus	Andarríos grande	lesrpe
+A166	Tringa glareola	Andarríos bastardo	lesrpe
+A168	Actitis hypoleucos	Andarríos chico	atlas
+A169	Arenaria interpres	Vuelvepiedras común	lesrpe
+A171	Phalaropus fulicarius	Falaropo picogrueso	a mano
+A172	Stercorarius pomarinus	Págalo pomarino	lesrpe
+A173	Stercorarius parasiticus	Págalo parásito	lesrpe
+A174	Stercorarius longicaudus	Págalo rabero	a mano
+A175	Catharacta skua	Págalo grande	lesrpe
+A176	Larus melanocephalus	Gaviota cabecinegra	lesrpe
+A178	Larus sabini	Gaviota de Sabine	a mano
+A179	Larus ridibundus	Gaviota reidora	atlas
+A180	Larus genei	Gaviota picofina	atlas
+A181	Larus audouinii	Gaviota de Audouin	atlas
+A183	Larus fuscus	Gaviota sombría	atlas
+A187	Larus marinus	Gavión atlántico	lesrpe
+A188	Rissa tridactyla	Gaviota tridáctila	atlas
+A189	Gelochelidon nilotica	Pagaza piconegra	atlas
+A192	Sterna dougallii	Charrán rosado	lesrpe
+A193	Sterna hirundo	Charrán común	atlas
+A194	Sterna paradisaea	Charrán ártico	lesrpe
+A197	Chlidonias niger	Fumarel común	atlas
+A199	Uria aalge	Arao común	atlas
+A200	Alca torda	Alca común	lesrpe
+A204	Fratercula arctica	Frailecillo atlántico	lesrpe
+A205	Pterocles alchata	Ganga ibérica	atlas
+A207	Columba oenas	Paloma zurita	atlas
+A208	Columba palumbus	Paloma torcaz	atlas
+A210	Streptopelia turtur	Tórtola europea	atlas
+A214	Otus scops	Autillo europeo	atlas
+A215	Bubo bubo	Búho real	atlas
+A222	Asio flammeus	Búho campestre	atlas
+A223	Aegolius funereus	Mochuelo boreal	atlas
+A224	Caprimulgus europaeus	Chotacabras europeo	atlas
+A225	Caprimulgus ruficollis	Chotacabras cuellirrojo	atlas
+A229	Alcedo atthis	Martín pescador común	atlas
+A230	Merops apiaster	Abejaruco europeo	atlas
+A231	Coracias garrulus	Carraca europea	atlas
+A232	Upupa epops	Abubilla	atlas
+A233	Jynx torquilla	Torcecuello euroasiático	atlas
+A236	Dryocopus martius	Picamaderos negro	atlas
+A237	Dendrocopos major	Pico picapinos	atlas
+A239	Dendrocopos leucotos	Pico dorsiblanco	atlas
+A242	Melanocorypha calandra	Calandria	atlas
+A243	Calandrella brachydactyla	Terrera común	atlas
+A244	Galerida cristata	Cogujada común	atlas
+A245	Galerida theklae	Cogujada montesina	atlas
+A246	Lullula arborea	Totovía	atlas
+A249	Riparia riparia	Avión zapador	atlas
+A255	Anthus campestris	Bisbita campestre	atlas
+A257	Anthus pratensis	Bisbita común	lesrpe
+A259	Anthus spinoletta	Bisbita alpino	atlas
+A260	Motacilla flava	Lavandera boyera	atlas
+A262	Motacilla alba	Lavandera blanca	atlas
+A264	Cinclus cinclus	Mirlo acuático	atlas
+A265	Troglodytes troglodytes	Chochín	atlas
+A267	Prunella collaris	Acentor alpino	atlas
+A274	Phoenicurus phoenicurus	Colirrojo real	atlas
+A275	Saxicola rubetra	Tarabilla norteña	atlas
+A276	Saxicola torquatus	Tarabilla común	atlas
+A277	Oenanthe oenanthe	Collalba gris	atlas
+A278	Oenanthe hispanica	Collalba rubia	atlas
+A279	Oenanthe leucura	Collalba negra	atlas
+A280	Monticola saxatilis	Roquero rojo	atlas
+A282	Turdus torquatus	Mirlo capiblanco	atlas
+A292	Locustella luscinioides	Buscarla unicolor	atlas
+A293	Acrocephalus melanopogon	Carricerín real	atlas
+A294	Acrocephalus paludicola	Carricerín cejudo	lesrpe
+A295	Acrocephalus schoenobaenus	Carricerín común	lesrpe
+A298	Acrocephalus arundinaceus	Carricero tordal	atlas
+A299	Hippolais icterina	Zarcero icterino	lesrpe
+A302	Sylvia undata	Curruca rabilarga	atlas
+A303	Sylvia conspicillata	Curruca tomillera	atlas
+A304	Sylvia cantillans	Curruca carrasqueña	a mano
+A319	Muscicapa striata	Papamoscas gris	atlas
+A320	Ficedula parva	Papamoscas papirrojo	a mano
+A321	Ficedula albicollis	Papamoscas acollarado	a mano
+A333	Tichodroma muraria	Treparriscos	atlas
+A335	Certhia brachydactyla	Agateador común	atlas
+A336	Remiz pendulinus	Pájaro moscón	atlas
+A338	Lanius collurio	Alcaudón dorsirrojo	atlas
+A339	Lanius minor	Alcaudón chico	atlas
+A340	Lanius excubitor	Alcaudón norteño	a mano
+A346	Pyrrhocorax pyrrhocorax	Chova piquirroja	atlas
+A359	Fringilla coelebs	Pinzón vulgar	atlas
+A360	Fringilla montifringilla	Pinzón real	lesrpe
+A369	Loxia curvirostra	Piquituerto común	atlas
+A379	Emberiza hortulana	Escribano hortelano	atlas
+A385	Pterodroma madeira	Petrel de Madeira	a mano
+A387	Bulweria bulwerii	Petrel de Bulwer	atlas
+A388	Puffinus assimilis	Pardela chica	atlas
+A389	Pelagodroma marina	Paíño pechialbo	atlas
+A391	Phalacrocorax carbo sinensis	Cormorán grande	atlas
+A392	Phalacrocorax aristotelis desmarestii	Cormorán moñudo	atlas
+A397	Tadorna ferruginea	Tarro canelo	a mano
+A399	Elanus caeruleus	Elanio común	atlas
+A401	Accipiter nisus granti	Gavilán común	atlas
+A403	Buteo rufinus	Busardo moro	a mano
+A405	Aquila adalberti	Águila imperial ibérica	atlas
+A415	Perdix perdix hispaniensis	Perdiz pardilla	atlas
+A416	Chlamydotis undulata	Avutarda hubara	atlas
+A419	Uria aalge ibericus	Arao común	atlas
+A420	Pterocles orientalis	Ganga ortega	atlas
+A422	Columba bollii	Paloma turqué	atlas
+A423	Columba junoniae	Paloma rabiche	atlas
+A424	Apus caffer	Vencejo cafre	atlas
+A427	Dendrocopos major canariensis	Pico picapinos	atlas
+A428	Dendrocopos major thanneri	Pico picapinos	atlas
+A430	Chersophilus duponti	Alondra de Dupont	atlas
+A437	Saxicola dacotiae	Tarabilla canaria	a mano
+A448	Fringilla coelebs ombriosa	Pinzón vulgar	atlas
+A452	Bucanetes githagineus	Camachuelo trompetero	atlas
+A459	Larus cachinnans	Gaviota del Caspio	a mano
+A464	Puffinus yelkouan	Pardela mediterránea	atlas
+A473	Periparus ater	Carbonero garrapinos	atlas
+A475	Alaudala rufescens	Terrera marismeña	atlas
+A480	Cyanecula svecica	Pechiazul	atlas
+A485	Fringilla polatzeki	Pinzón azul de Gran Canaria	lesrpe
+A486	Fringilla teydea	Pinzón azul de Tenerife	a mano
+A496	Lanius meridionalis	Alcaudón real	atlas
+A504	Puffinus assimilis baroli	Pardela chica	atlas
+A513	Tetrao urogallus cantabricus	Urogallo común	atlas
+A569	Sylvia balearica	Curruca balear	a mano
+A604	Larus michahellis	Gaviota patiamarilla	atlas
+A619	Accipiter gentilis gentilis	Azor común	atlas
+A661	Tetrao urogallus aquitanicus	Urogallo común	atlas
+A662	Uria aalge albionis	Arao común	atlas
+A663	Phoenicopterus roseus	Flamenco común	atlas
+A675	Branta bernicla bernicla	Barnacla carinegra	lesrpe
+A683	Phalacrocorax carbo carbo	Cormorán grande	atlas
+A684	Phalacrocorax aristotelis aristotelis	Cormorán moñudo	atlas
+A687	Columba palumbus palumbus	Paloma torcaz	atlas
+A693	Puffinus mauretanicus	Pardela balear	atlas
+A707	Aquila fasciata	Águila-azor perdicera	atlas
+A712	Lagopus muta pyrenaica	Lagópodo alpino	atlas
+A717	Turnix sylvaticus	Torillo	lesrpe
+A722	Porphyrio porphyrio porphyrio	Calamón común	atlas
+A727	Eudromias morinellus	Chorlito carambolo	a mano
+A734	Chlidonias hybrida	Fumarel cariblanco	atlas
+A768	Numenius arquata arquata	Zarapito real	lesrpe
+A773	Ardea alba	Garceta grande	lesrpe
+A850	Calonectris diomedea	Pardela cenicienta mediterránea	a mano
+A851	Calonectris borealis	Pardela cenicienta atlántica	a mano
+A852	Ardenna gravis	Pardela capirotada	lesrpe
+A853	Ardenna grisea	Pardela sombría	lesrpe
+A854	Hydrobates leucorhous	Paíño boreal	lesrpe
+A855	Mareca penelope	Silbón europeo	a mano
+A856	Spatula querquedula	Cerceta carretona	atlas
+A857	Spatula clypeata	Cuchara común	atlas
+A858	Clanga pomarina	Águila pomerana	a mano
+A859	Clanga clanga	Águila moteada	a mano
+A861	Calidris pugnax	Combatiente	lesrpe
+A862	Hydrocoloeus minutus	Gaviota enana	lesrpe
+A863	Thalasseus sandvicensis	Charrán patinegro	atlas
+A868	Leiopicus medius	Pico mediano	atlas
+A874	Hydrobates castro	Paíño de Madeira	atlas
+A880	Puffinus lherminieri	Pardela chica	a mano
+A885	Sternula albifrons	Charrancito común	atlas
+A889	Mareca strepera	Ánade friso	atlas
+A892	Zapornia parva	Polluela bastarda	lesrpe
+A893	Zapornia pusilla	Polluela chica	atlas
+A894	Hydroprogne caspia	Pagaza piquirroja	lesrpe
+A900	Melanitta nigra	Negrón común	a mano
+A907	Sylvia subalpina	Curruca de Moltoni	a mano
