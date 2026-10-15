@@ -4,6 +4,8 @@ Estado de las IBA reúne lo que publican los proyectos hermanos. Para no depende
 
 Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `https://asensio94.github.io/<proyecto>/signals.json`. Estado de las IBA lo busca en cada actualización. Mientras un proyecto no lo publique, o si el fichero no se puede leer, el hub traduce sus ficheros internos como hasta ahora (`estado/adapters.py`).
 
+Hay dos versiones. La **1** es solo España y sigue valiendo tal cual. La **2** añade el país: cada señal dice de qué país es y la cobertura va por país (más abajo, [Versión 2](#versión-2-varios-países)). Las dos tienen su esquema JSON en [`docs/signals.schema.json`](docs/signals.schema.json), publicado en `https://asensio94.github.io/estado-iba/signals.schema.json`.
+
 ## `signals.json`
 
 ```json
@@ -67,13 +69,43 @@ Antes de publicar el fichero por primera vez, desde estado-iba:
 python -m estado.cli check vigia-incendios ruta/a/signals.json
 ```
 
-Compara el fichero con lo que el adaptador lee hoy de la web del proyecto y enumera las diferencias tal como las vería el panel.
+Primero valida el fichero contra el esquema JSON (versión 1 o 2) y enumera cada error con su ruta. Después compara la parte de España con lo que el adaptador lee hoy de la web del proyecto y enumera las diferencias tal como las vería el panel. De los demás países no hay adaptador con el que comparar: dice cuántas señales son válidas y cuántas caen en sus espacios.
+
+## Versión 2: varios países
+
+```json
+{
+  "source": "vigia-incendios",
+  "version": 2,
+  "generated": "2027-07-01T07:02Z",
+  "coverage": {
+    "ES": {"label": "Toda España", "sites": null, "note": "Focos VIIRS de NASA FIRMS."},
+    "FR": {"label": "Toute la France métropolitaine", "sites": null, "note": "Foyers VIIRS de NASA FIRMS."}
+  },
+  "signals": [
+    {"id": "F2026-0812", "country": "ES", "kind": "fire", "date": "2026-08-01", "title": "Incendio en Navalmoral de la Mata",
+     "url": "https://asensio94.github.io/vigia-incendios/#F2026-0812", "municipalities": ["10131"], "precision": "perimetro"},
+    {"id": "F2026-0907", "country": "FR", "kind": "fire", "date": "2026-08-03", "title": "Incendie à Arles",
+     "url": "https://asensio94.github.io/vigia-incendios/#F2026-0907", "municipalities": ["13004"], "precision": "perimetro"}
+  ]
+}
+```
+
+- **`country`**, obligatorio en cada señal: el código ISO 3166-1 alfa-2 (`ES`, `FR`).
+- **`coverage`** pasa a ser un objeto por país, cada uno con la forma de la versión 1. Un país que no está en `coverage` no lo cubre el proyecto: el hub descarta sus señales, porque un hecho sin cobertura no se puede leer frente a lo que se vigila (y lo avisa en el registro del build).
+- **`municipalities`** lleva el código del país de la señal: INE de 5 cifras en España, INSEE en Francia (5 caracteres; Córcega usa `2A` y `2B`, como `2A004`, Ajaccio). Un código que no tiene la forma de su país se descarta.
+- **`title`** va en la lengua del país de la señal: en español las de España y en francés las de Francia, porque cada país tiene su web en su lengua. Los datos (códigos, fechas, cifras) no dependen de la lengua.
+- **`sites`** sigue siendo el `SITECODE` de Natura 2000, que ya lleva el país delante (`ES…`, `FR…`).
+- **`municipality_names`** y **`provinces`** valen igual: en Francia, `provinces` son los departamentos y los nombres se resuelven con IGN Admin Express.
+
+Un fichero sin `country` (versión 1) se lee como España. El hub construye un panel por país con sus propios ficheros (`docs/` para España, `docs/fr/` para Francia), así que un código INSEE nunca se mezcla con uno INE aunque coincidan las cifras (`13004` es Arles en Francia y Albaladejo, en Ciudad Real, en España).
 
 ## Llaves comunes
 
 - **Espacio:** el `SITECODE` de Natura 2000 de la Agencia Europea de Medio Ambiente. Cuando entren las IBA, se añadirá su código de BirdLife con el mismo mecanismo.
-- **Municipio:** el código INE de 5 cifras. La capa de municipios sale del IGN (`es-atlas`), con la que estado-iba resuelve los nombres de municipio que traen los anuncios del BOE.
-- **Comunidad autónoma:** el código INE de 2 cifras. No hace falta enviarla: el hub la deduce de los espacios y los municipios y la añade a cada señal como `regions`.
+- **País:** ISO 3166-1 alfa-2 (versión 2).
+- **Municipio:** en España, el código INE de 5 cifras. La capa de municipios sale del IGN (`es-atlas`), con la que estado-iba resuelve los nombres de municipio que traen los anuncios del BOE. En Francia, el código INSEE de la commune, con la capa IGN Admin Express (COG-CARTO).
+- **Comunidad autónoma o región:** en España, el código INE de 2 cifras; en Francia, el código INSEE de la región. No hace falta enviarla: el hub la deduce de los espacios y los municipios y la añade a cada señal como `regions`.
 - **Anuncio:** el identificador del BOE (`BOE-B-AAAA-NNNNN`). Es la llave para seguir el hilo del proyecto al promotor y a su grupo empresarial.
 
 ## Reglas

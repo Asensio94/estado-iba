@@ -10,11 +10,23 @@ Todo lo que los proyectos hermanos saben de un lugar, en una sola página y en u
 
 Casi nada lo mide por sí mismo: cada día reúne lo que ya publican los proyectos hermanos y enlaza cada dato a su registro. La excepción es la luz de noche, que calcula una vez al mes a partir de NASA Black Marble.
 
-**Web:** https://asensio94.github.io/estado-iba/
+**Web:** https://asensio94.github.io/estado-iba/ · en francés, para Francia: https://asensio94.github.io/estado-iba/fr/
 
 Por ahora la unidad son las **ZEPA** de la Red Natura 2000, que son datos abiertos: 658 espacios, incluidos los que son a la vez ZEC y ZEPA. Las IBA de SEO/BirdLife sustituirán a las ZEPA cuando su reutilización esté acordada. El código no depende de la capa: basta con cambiar `SITES_URL` y `SITE_KIND` en `estado/config.py`, siempre que los proyectos hermanos crucen con los mismos códigos.
 
 > **Estado: activo.** Se actualiza solo y sigue en desarrollo.
+
+## Francia
+
+Desde la ola 0, el país es una dimensión más. Francia tiene su propia web, en francés, en `/estado-iba/fr/`, con las mismas reglas que la de España: cada dato enlazado a su fuente y el método, las exclusiones y los límites explicados en la propia página.
+
+- **Espacios.** Las 407 ZPS (*zones de protection spéciale*) de la Francia metropolitana, Córcega incluida, del mismo servicio de la Agencia Europea de Medio Ambiente y simplificadas igual (unos 300 m). Los departamentos de ultramar no tienen espacios Natura 2000. Las IBA de Francia esperan, como las de España, al permiso por escrito de BirdLife.
+- **Communes, departamentos y regiones.** IGN Admin Express COG-CARTO (Licence Ouverte 2.0). `python -m estado.cli communes` las descarga una vez al año, cuando el IGN publica el código oficial geográfico nuevo, las simplifica a unos 200 m como los municipios españoles y las guarda en `estado/ref/communes_fr.json.gz` (unos 4 MB). Cada commune se identifica por su código INSEE (Córcega usa `2A` y `2B`). Un espacio cuenta en una commune con la misma regla que en España.
+- **Qué se vigila hoy.** La luz de noche (NASA Black Marble), comparada con las ZPS francesas que eran igual de oscuras, no con las españolas, y las aves de cada espacio. Los demás proyectos hermanos leen fuentes españolas: sus capas salen en gris con «Pas en France». En la portada no se dice «ninguna consulta abierta» donde nadie mira las consultas.
+- **Datos aparte.** Francia escribe en `docs/fr/` sus propios `datos/hub.json`, `datos/municipios.json`, `datos/luz.json`, `sitios.geojson`, `comunidades.geojson` (regiones) y RSS. Los códigos no se mezclan nunca: `13004` es Arles para el INSEE y Albaladejo para el INE. Lo único compartido es `docs/datos/aves.json`, por `SITECODE`, con el nombre de cada especie en las dos lenguas.
+- **Lengua.** Los textos de cada web están en `estado/i18n.py`, por lengua, con el mismo patrón que `humedales/i18n.py`: la página los lleva dentro (`window.I18N`) y `app.js` es el mismo para los dos países. En francés, un espacio fino de no separación (U+202F) antes de `: ; ! ? %`, dentro de `« »` y como separador de miles. Los datos no dependen de la lengua.
+- **Contrato v2.** Cada señal lleva `country` y la cobertura va por país. Un `signals.json` sin `country` (v1) se sigue leyendo como España. `check` valida las dos versiones con [`docs/signals.schema.json`](docs/signals.schema.json). Detalle en [CONTRATO.md](CONTRATO.md#versión-2-varios-países).
+- Si Francia falla en una actualización, España se publica igual.
 
 ## Qué se puede hacer en la web
 
@@ -99,8 +111,8 @@ Cada ficha dice qué aves dieron valor al espacio, para que cada presión se lea
 - **Dato.** La tabla SPECIES de la base de datos de Natura 2000 (final de 2024, revisión 1), que la Agencia Europea de Medio Ambiente publica cada año con licencia CC BY 4.0. Recoge el formulario oficial de cada espacio tal como lo envió el Estado.
 - **Qué se muestra.** Para cada especie, la época en que está (todo el año, cría, inverna o en paso) y qué parte de las que hay en España acoge el espacio: más del 15 % (A), entre el 2 y el 15 % (B) o menos del 2 % (C). Una especie en varias filas, por ejemplo cría e inverna, toma la mejor. Algunos formularios dejan la parte en blanco pero valoran el espacio para la especie: salen aparte, «sin porcentaje». Otros, sobre todo en Canarias, solo nombran las especies sin evaluar nada: salen al final, «sin evaluar». Las de población poco significativa (D) solo se cuentan.
 - **Qué no se muestra.** Ni el número de parejas o ejemplares del formulario ni ninguna ubicación dentro del espacio. Las filas que el Estado marca como sensibles no se publican (la base pública ya retira la mayoría), ni las de especies que el formulario da por desaparecidas.
-- **Nombres.** `estado/aves_es.tsv` da el nombre en castellano de cada código de especie de la Directiva Aves: 181 del Atlas de las aves reproductoras del MITECO, 58 del Listado de especies silvestres en régimen de protección especial (Real Decreto 139/2011) y 28 puestos a mano para especies que no crían en España o que han cambiado de nombre científico.
-- `python -m estado.cli aves` descarga la base (unos 30 MB) y escribe `docs/datos/aves.json`. Se ejecuta a mano cuando sale una versión nueva, cambiando antes `ZIP_URL` y `VERSION` en `estado/aves.py`.
+- **Nombres.** `estado/aves_es.tsv` da el nombre en castellano de cada código de especie de la Directiva Aves: 181 del Atlas de las aves reproductoras del MITECO, 58 del Listado de especies silvestres en régimen de protección especial (Real Decreto 139/2011) y 28 puestos a mano para especies que no crían en España o que han cambiado de nombre científico. `estado/aves_fr.tsv` da el francés de las 217 especies de las ZPS francesas: la etiqueta francesa de Wikidata (CC0), que sigue la lista de la Commission de l'avifaune française, revisada a mano, y 34 puestas a mano para subespecies y nombres científicos antiguos del formulario. La API de TAXREF del Muséum ya no responde.
+- `python -m estado.cli aves` descarga la base (unos 30 MB) y escribe `docs/datos/aves.json` para los dos países. En Francia, la parte de la población es la de Francia. Se ejecuta a mano cuando sale una versión nueva, cambiando antes `ZIP_URL` y `VERSION` en `estado/aves.py`.
 
 ### Vigilado no es lo mismo que tranquilo
 
@@ -167,12 +179,13 @@ pip install -r requirements.txt
 python -m pytest -q
 python -m estado.cli build            # --today AAAA-MM-DD para fijar la fecha
 python -m estado.cli check vigia-incendios signals.json   # un signals.json frente a su adaptador
-python -m estado.cli luz              # serie de luz de noche; pide EARTHDATA_USERNAME y EARTHDATA_PASSWORD
+python -m estado.cli luz              # luz de noche de España y Francia (o: luz ES, luz FR); pide EARTHDATA_USERNAME y EARTHDATA_PASSWORD
 python -m estado.cli aves             # aves de cada espacio desde Natura 2000 (o: aves <zip ya descargado>)
+python -m estado.cli communes         # una vez al año: communes, departamentos y regiones de Francia del IGN
 python -m http.server -d docs
 ```
 
-El workflow `diario.yml` lo ejecuta cada día a las 08:15 UTC, después de que publiquen los proyectos hermanos, y hace commit de `docs/`. GitHub Pages sirve la rama `main`, carpeta `/docs`. El workflow `luz.yml` actualiza la luz de noche el día 2 de cada mes con la cuenta de [Earthdata Login](https://urs.earthdata.nasa.gov/) guardada en los secretos del repositorio, y rehace el panel si ha cambiado.
+El workflow `diario.yml` lo ejecuta cada día a las 08:15 UTC, después de que publiquen los proyectos hermanos, y hace commit de `docs/` (España) y `docs/fr/` (Francia). GitHub Pages sirve la rama `main`, carpeta `/docs`. El workflow `luz.yml` actualiza la luz de noche el día 2 de cada mes con la cuenta de [Earthdata Login](https://urs.earthdata.nasa.gov/) guardada en los secretos del repositorio, y rehace el panel si ha cambiado la de cualquiera de los dos países. Si falla un país, el otro se guarda igual y el workflow queda en rojo.
 
 ## Datos que se guardan
 
@@ -185,6 +198,8 @@ Solo `docs/`:
 - `datos/aves.json`, con las aves de cada espacio: código de especie, épocas y parte de la población española, sin cifras.
 - `sitios.geojson` y `comunidades.geojson`, con los límites simplificados.
 - Un canal RSS por espacio y otro por comunidad.
+- `signals.schema.json`, el esquema JSON del contrato.
+- `fr/`, lo mismo para Francia, salvo `app.js`, `app.css` y `aves.json`, que se comparten.
 
 No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dormideros ni territorios). De los aerogeneradores y tendidos solo se publica cuántos elementos de riesgo hay en cada espacio, nunca qué especies los usan. Tampoco se guarda ningún dato personal: las personas físicas del Grafo se descartan.
 
@@ -201,6 +216,7 @@ No se guarda ni se publica ninguna ubicación de especies (colonias, nidos, dorm
 - Migración: radares meteorológicos europeos, vía Sub Nocte.
 - Luz de noche: NASA Black Marble, VNP46A4 versión 2 ([doi:10.5067/VIIRS/VNP46A4.002](https://doi.org/10.5067/VIIRS/VNP46A4.002)), datos abiertos de la NASA.
 - Sociedades y grupos: BOE y BORME, vía el Grafo de promotores y la Cartera de las cotizadas.
+- Francia: ZPS de la Agencia Europea de Medio Ambiente (CC BY 4.0); communes, departamentos y regiones de IGN Admin Express COG-CARTO (Licence Ouverte 2.0); nombres franceses de las aves de Wikidata (CC0).
 - Mapa: © colaboradores de OpenStreetMap.
 - Código con licencia MIT.
 

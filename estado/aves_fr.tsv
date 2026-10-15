@@ -1,0 +1,218 @@
+code	scientific	name_fr	from
+A001	Gavia stellata	Plongeon catmarin	wikidata:Q26691
+A002	Gavia arctica	Plongeon arctique	wikidata:Q184432
+A003	Gavia immer	Plongeon imbrin	wikidata:Q190342
+A004	Tachybaptus ruficollis	Grèbe castagneux	wikidata:Q25421
+A005	Podiceps cristatus	Grèbe huppé	wikidata:Q25422
+A006	Podiceps grisegena	Grèbe jougris	wikidata:Q179919
+A007	Podiceps auritus	Grèbe esclavon	wikidata:Q192058
+A008	Podiceps nigricollis	Grèbe à cou noir	wikidata:Q185183
+A009	Fulmarus glacialis	Fulmar boréal	wikidata:Q26896
+A010	Calonectris diomedea	Puffin de Scopoli	hand
+A013	Puffinus puffinus	Puffin des Anglais	wikidata:Q208405
+A014	Hydrobates pelagicus	Océanite tempête	wikidata:Q27461
+A016	Morus bassanus	Fou de Bassan	wikidata:Q26675
+A017	Phalacrocorax carbo	Grand Cormoran	wikidata:Q25440
+A018	Phalacrocorax aristotelis	Cormoran huppé	wikidata:Q115452
+A021	Botaurus stellaris	Butor étoilé	wikidata:Q25709
+A022	Ixobrychus minutus	Blongios nain	wikidata:Q26129
+A023	Nycticorax nycticorax	Bihoreau gris	wikidata:Q126216
+A024	Ardeola ralloides	Crabier chevelu	wikidata:Q191394
+A025	Bubulcus ibis	Héron garde-bœufs	hand
+A026	Egretta garzetta	Aigrette garzette	wikidata:Q131709
+A028	Ardea cinerea	Héron cendré	wikidata:Q25273
+A029	Ardea purpurea	Héron pourpré	wikidata:Q160488
+A030	Ciconia nigra	Cigogne noire	wikidata:Q25398
+A031	Ciconia ciconia	Cigogne blanche	wikidata:Q25352
+A032	Plegadis falcinellus	Ibis falcinelle	wikidata:Q178811
+A034	Platalea leucorodia	Spatule blanche	wikidata:Q171360
+A035	Phoenicopterus ruber	Flamant rose	hand
+A036	Cygnus olor	Cygne tuberculé	wikidata:Q25402
+A037	Cygnus columbianus bewickii	Cygne de Bewick	wikidata:Q244325
+A038	Cygnus cygnus	Cygne chanteur	wikidata:Q25612
+A039	Anser fabalis	Oie des moissons	wikidata:Q26452
+A041	Anser albifrons	Oie rieuse	wikidata:Q172093
+A043	Anser anser	Oie cendrée	wikidata:Q25882
+A045	Branta leucopsis	Bernache nonnette	wikidata:Q26680
+A046	Branta bernicla	Bernache cravant	wikidata:Q27050
+A048	Tadorna tadorna	Tadorne de Belon	wikidata:Q25761
+A052	Anas crecca	Sarcelle d'hiver	wikidata:Q25700
+A053	Anas platyrhynchos	Canard colvert	wikidata:Q25348
+A054	Anas acuta	Canard pilet	wikidata:Q25450
+A058	Netta rufina	Nette rousse	wikidata:Q244350
+A059	Aythya ferina	Fuligule milouin	wikidata:Q26742
+A060	Aythya nyroca	Fuligule nyroca	wikidata:Q191723
+A061	Aythya fuligula	Fuligule morillon	wikidata:Q26444
+A062	Aythya marila	Fuligule milouinan	wikidata:Q26635
+A063	Somateria mollissima	Eider à duvet	wikidata:Q26696
+A064	Clangula hyemalis	Harelde boréale	hand
+A065	Melanitta nigra	Macreuse noire	wikidata:Q27434
+A066	Melanitta fusca	Macreuse brune	wikidata:Q201300
+A067	Bucephala clangula	Garrot à œil d'or	wikidata:Q29865
+A069	Mergus serrator	Harle huppé	wikidata:Q189609
+A070	Mergus merganser	Harle bièvre	wikidata:Q180991
+A071	Oxyura leucocephala	Érismature à tête blanche	wikidata:Q241399
+A072	Pernis apivorus	Bondrée apivore	wikidata:Q170466
+A073	Milvus migrans	Milan noir	wikidata:Q80362
+A074	Milvus milvus	Milan royal	wikidata:Q156250
+A075	Haliaeetus albicilla	Pygargue à queue blanche	wikidata:Q25438
+A076	Gypaetus barbatus	Gypaète barbu	wikidata:Q126167
+A077	Neophron percnopterus	Vautour percnoptère	hand
+A078	Gyps fulvus	Vautour fauve	wikidata:Q177856
+A079	Aegypius monachus	Vautour moine	wikidata:Q168677
+A080	Circaetus gallicus	Circaète Jean-le-Blanc	wikidata:Q170251
+A081	Circus aeruginosus	Busard des roseaux	wikidata:Q26431
+A082	Circus cyaneus	Busard Saint-Martin	wikidata:Q25572
+A084	Circus pygargus	Busard cendré	wikidata:Q26574
+A091	Aquila chrysaetos	Aigle royal	wikidata:Q41181
+A092	Hieraaetus pennatus	Aigle botté	wikidata:Q182971
+A094	Pandion haliaetus	Balbuzard pêcheur	wikidata:Q25332
+A095	Falco naumanni	Faucon crécerellette	wikidata:Q229408
+A097	Falco vespertinus	Faucon kobez	wikidata:Q179625
+A098	Falco columbarius	Faucon émerillon	wikidata:Q131918
+A100	Falco eleonorae	Faucon d'Éléonore	wikidata:Q212243
+A103	Falco peregrinus	Faucon pèlerin	wikidata:Q30535
+A104	Bonasa bonasia	Gélinotte des bois	hand
+A108	Tetrao urogallus	Grand Tétras	wikidata:Q129059
+A118	Rallus aquaticus	Râle d'eau	wikidata:Q185099
+A119	Porzana porzana	Marouette ponctuée	wikidata:Q194024
+A122	Crex crex	Râle des genêts	wikidata:Q26017
+A123	Gallinula chloropus	Gallinule poule-d'eau	wikidata:Q18847
+A124	Porphyrio porphyrio	Talève sultane	wikidata:Q187902
+A125	Fulica atra	Foulque macroule	wikidata:Q25376
+A127	Grus grus	Grue cendrée	wikidata:Q4764
+A128	Tetrax tetrax	Outarde canepetière	wikidata:Q188601
+A130	Haematopus ostralegus	Huîtrier pie	wikidata:Q25928
+A131	Himantopus himantopus	Échasse blanche	wikidata:Q178821
+A132	Recurvirostra avosetta	Avocette élégante	hand
+A133	Burhinus oedicnemus	Œdicnème criard	wikidata:Q184834
+A135	Glareola pratincola	Glaréole à collier	wikidata:Q330310
+A136	Charadrius dubius	Petit Gravelot	wikidata:Q18851
+A137	Charadrius hiaticula	Grand Gravelot	hand
+A138	Charadrius alexandrinus	Pluvier à collier interrompu	wikidata:Q18855
+A140	Pluvialis apricaria	Pluvier doré	wikidata:Q21148
+A141	Pluvialis squatarola	Pluvier argenté	wikidata:Q18835
+A142	Vanellus vanellus	Vanneau huppé	wikidata:Q25392
+A143	Calidris canutus	Bécasseau maubèche	wikidata:Q27124
+A144	Calidris alba	Bécasseau sanderling	wikidata:Q58958
+A145	Calidris minuta	Bécasseau minute	wikidata:Q27232
+A146	Calidris temminckii	Bécasseau de Temminck	wikidata:Q58921
+A147	Calidris ferruginea	Bécasseau cocorli	wikidata:Q62345
+A148	Calidris maritima	Bécasseau violet	wikidata:Q62359
+A149	Calidris alpina	Bécasseau variable	wikidata:Q26650
+A152	Lymnocryptes minimus	Bécassine sourde	wikidata:Q26711
+A153	Gallinago gallinago	Bécassine des marais	wikidata:Q25692
+A154	Gallinago media	Bécassine double	wikidata:Q27171
+A155	Scolopax rusticola	Bécasse des bois	wikidata:Q26114
+A156	Limosa limosa	Barge à queue noire	wikidata:Q18841
+A157	Limosa lapponica	Barge rousse	wikidata:Q18864
+A158	Numenius phaeopus	Courlis corlieu	wikidata:Q18858
+A160	Numenius arquata	Courlis cendré	wikidata:Q18854
+A161	Tringa erythropus	Chevalier arlequin	wikidata:Q28103
+A162	Tringa totanus	Chevalier gambette	wikidata:Q18859
+A164	Tringa nebularia	Chevalier aboyeur	wikidata:Q18840
+A165	Tringa ochropus	Chevalier cul-blanc	wikidata:Q28450
+A166	Tringa glareola	Chevalier sylvain	wikidata:Q18837
+A168	Actitis hypoleucos	Chevalier guignette	wikidata:Q18850
+A169	Arenaria interpres	Tournepierre à collier	wikidata:Q26892
+A170	Phalaropus lobatus	Phalarope à bec étroit	wikidata:Q206840
+A171	Phalaropus fulicarius	Phalarope à bec large	wikidata:Q208335
+A172	Stercorarius pomarinus	Labbe pomarin	wikidata:Q212767
+A173	Stercorarius parasiticus	Labbe parasite	wikidata:Q203053
+A174	Stercorarius longicaudus	Labbe à longue queue	wikidata:Q216921
+A175	Catharacta skua	Grand Labbe	hand
+A176	Larus melanocephalus	Mouette mélanocéphale	hand
+A178	Larus sabini	Mouette de Sabine	hand
+A179	Larus ridibundus	Mouette rieuse	hand
+A180	Larus genei	Goéland railleur	hand
+A181	Larus audouinii	Goéland d'Audouin	hand
+A182	Larus canus	Goéland cendré	wikidata:Q26427
+A183	Larus fuscus	Goéland brun	wikidata:Q27160
+A184	Larus argentatus	Goéland argenté	wikidata:Q28236
+A187	Larus marinus	Goéland marin	wikidata:Q26629
+A188	Rissa tridactyla	Mouette tridactyle	wikidata:Q26612
+A189	Gelochelidon nilotica	Sterne hansel	wikidata:Q18834
+A191	Sterna sandvicensis	Sterne caugek	hand
+A192	Sterna dougallii	Sterne de Dougall	wikidata:Q321293
+A193	Sterna hirundo	Sterne pierregarin	hand
+A194	Sterna paradisaea	Sterne arctique	wikidata:Q26800
+A197	Chlidonias niger	Guifette noire	wikidata:Q27215
+A199	Uria aalge	Guillemot de Troïl	wikidata:Q21062
+A200	Alca torda	Petit Pingouin	wikidata:Q27102
+A204	Fratercula arctica	Macareux moine	wikidata:Q26685
+A205	Pterocles alchata	Ganga cata	wikidata:Q753741
+A215	Bubo bubo	Hibou grand-duc	wikidata:Q130933
+A217	Glaucidium passerinum	Chevêchette d'Europe	wikidata:Q191155
+A218	Athene noctua	Chevêche d'Athéna	wikidata:Q129958
+A221	Asio otus	Hibou moyen-duc	wikidata:Q25384
+A222	Asio flammeus	Hibou des marais	wikidata:Q25769
+A223	Aegolius funereus	Nyctale de Tengmalm	wikidata:Q174466
+A224	Caprimulgus europaeus	Engoulevent d'Europe	wikidata:Q26717
+A229	Alcedo atthis	Martin-pêcheur d'Europe	wikidata:Q79915
+A231	Coracias garrulus	Rollier d'Europe	wikidata:Q179367
+A234	Picus canus	Pic cendré	wikidata:Q201106
+A236	Dryocopus martius	Pic noir	wikidata:Q143284
+A239	Dendrocopos leucotos	Pic à dos blanc	wikidata:Q207290
+A241	Picoides tridactylus	Pic tridactyle	wikidata:Q210418
+A242	Melanocorypha calandra	Alouette calandre	wikidata:Q470853
+A243	Calandrella brachydactyla	Alouette calandrelle	wikidata:Q24843
+A245	Galerida theklae	Cochevis de Thékla	wikidata:Q851570
+A246	Lullula arborea	Alouette lulu	wikidata:Q26969
+A255	Anthus campestris	Pipit rousseline	wikidata:Q27226
+A264	Cinclus cinclus	Cincle plongeur	wikidata:Q201831
+A274	Phoenicurus phoenicurus	Rougequeue à front blanc	wikidata:Q26620
+A275	Saxicola rubetra	Tarier des prés	wikidata:Q155869
+A276	Saxicola torquatus	Tarier pâtre	hand
+A288	Cettia cetti	Bouscarle de Cetti	wikidata:Q650114
+A290	Locustella naevia	Locustelle tachetée	wikidata:Q208710
+A293	Acrocephalus melanopogon	Lusciniole à moustaches	wikidata:Q385273
+A294	Acrocephalus paludicola	Phragmite aquatique	wikidata:Q242599
+A296	Acrocephalus palustris	Rousserolle verderolle	wikidata:Q210422
+A297	Acrocephalus scirpaceus	Rousserolle effarvatte	wikidata:Q159080
+A301	Sylvia sarda	Fauvette sarde	hand
+A302	Sylvia undata	Fauvette pitchou	hand
+A321	Ficedula albicollis	Gobemouche à collier	wikidata:Q690826
+A323	Panurus biarmicus	Panure à moustaches	wikidata:Q192817
+A331	Sitta whiteheadi	Sittelle corse	wikidata:Q180051
+A338	Lanius collurio	Pie-grièche écorcheur	wikidata:Q26671
+A339	Lanius minor	Pie-grièche à poitrine rose	wikidata:Q239393
+A346	Pyrrhocorax pyrrhocorax	Crave à bec rouge	wikidata:Q643836
+A379	Emberiza hortulana	Bruant ortolan	wikidata:Q206630
+A381	Emberiza schoeniclus	Bruant des roseaux	wikidata:Q26961
+A384	Puffinus puffinus mauretanicus	Puffin des Baléares	hand
+A391	Phalacrocorax carbo sinensis	Grand Cormoran continental	hand
+A392	Phalacrocorax aristotelis desmarestii	Cormoran huppé de Méditerranée	hand
+A399	Elanus caeruleus	Élanion blanc	wikidata:Q27227
+A400	Accipiter gentilis arrigonii	Autour des palombes de Corse	hand
+A412	Alectoris graeca saxatilis	Perdrix bartavelle	hand
+A415	Perdix perdix hispaniensis	Perdrix grise des Pyrénées	hand
+A464	Puffinus yelkouan	Puffin yelkouan	wikidata:Q511566
+A478	Spinus spinus	Tarin des aulnes	wikidata:Q27075864
+A480	Cyanecula svecica	Gorgebleue à miroir	hand
+A604	Larus michahellis	Goéland leucophée	wikidata:Q704982
+A661	Tetrao urogallus aquitanicus	Grand Tétras des Pyrénées	hand
+A675	Branta bernicla bernicla	Bernache cravant à ventre sombre	hand
+A693	Puffinus mauretanicus	Puffin des Baléares	wikidata:Q704081
+A707	Aquila fasciata	Aigle de Bonelli	wikidata:Q234722
+A712	Lagopus muta pyrenaica	Lagopède alpin des Pyrénées	hand
+A713	Lagopus muta helvetica	Lagopède alpin	hand
+A727	Eudromias morinellus	Pluvier guignard	hand
+A734	Chlidonias hybrida	Guifette moustac	wikidata:Q233616
+A767	Mergellus albellus	Harle piette	wikidata:Q200646
+A773	Ardea alba	Grande aigrette	wikidata:Q130730
+A852	Ardenna gravis	Puffin majeur	hand
+A853	Ardenna grisea	Puffin fuligineux	wikidata:Q27074603
+A854	Hydrobates leucorhous	Océanite cul-blanc	hand
+A855	Mareca penelope	Canard siffleur	wikidata:Q28106837
+A856	Spatula querquedula	Sarcelle d'été	wikidata:Q28106902
+A857	Spatula clypeata	Canard souchet	wikidata:Q28106731
+A859	Clanga clanga	Aigle criard	wikidata:Q21090684
+A861	Calidris pugnax	Combattant varié	wikidata:Q28122714
+A862	Hydrocoloeus minutus	Mouette pygmée	wikidata:Q164467
+A863	Thalasseus sandvicensis	Sterne caugek	wikidata:Q27547
+A868	Leiopicus medius	Pic mar	hand
+A885	Sternula albifrons	Sterne naine	wikidata:Q12267692
+A889	Mareca strepera	Canard chipeau	wikidata:Q28106966
+A892	Zapornia parva	Marouette poussin	wikidata:Q270680
+A893	Zapornia pusilla	Marouette de Baillon	wikidata:Q237670
+A894	Hydroprogne caspia	Sterne caspienne	wikidata:Q27129

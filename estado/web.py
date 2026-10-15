@@ -1,4 +1,9 @@
-"""The public site: a page shell, the data it reads, and one RSS feed per site and per community."""
+"""The public site: a page shell, the data it reads, and one RSS feed per site and per community.
+
+One site per country, each in its own language: Spain in docs/, France in docs/fr/. Both pages run
+the same app.js and app.css, kept once in docs/; each page writes in the strings of its language
+(window.I18N) and its own settings (window.PAGE). The data files are the same whatever the language.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +17,7 @@ from xml.sax.saxutils import escape
 
 from shapely.geometry import mapping, shape
 
-from . import config
+from . import config, i18n, page_fr
 from .logo import LOGO_SVG, favicon_link
 
 HERE = Path(__file__).parent
@@ -25,11 +30,15 @@ def _dump(path: Path, data) -> None:
 
 
 def build(sites: dict[str, dict], n: dict[str, dict], signals: list[dict], chains: dict, sources: dict,
-          munis: list[dict], regs: list[dict], site_reg: dict[str, dict], now: datetime, today: date) -> None:
-    docs = config.DOCS_DIR
+          munis: list[dict], regs: list[dict], site_reg: dict[str, dict], now: datetime, today: date,
+          country: str = "ES") -> None:
+    st = i18n.SETTINGS[country]
+    lang = st["lang"]
+    docs = config.DOCS_DIR / st["dir"]
     docs.mkdir(parents=True, exist_ok=True)
-    (docs / ".nojekyll").touch()
-    (docs / "panel.json").unlink(missing_ok=True)  # v1 output, replaced by datos/hub.json
+    if country == "ES":
+        (docs / ".nojekyll").touch()
+        (docs / "panel.json").unlink(missing_ok=True)  # v1 output, replaced by datos/hub.json
 
     site_munis: dict[str, list[list[str]]] = {}
     for m in munis:
@@ -47,7 +56,8 @@ def build(sites: dict[str, dict], n: dict[str, dict], signals: list[dict], chain
                 "sites": sorted(c for c, x in site_reg.items() if r["id"] in x["regions"])} for r in regs]
     signals = sorted(signals, key=lambda s: s["date"], reverse=True)
     _dump(docs / "datos" / "hub.json", {
-        "generated": now.strftime("%Y-%m-%dT%H:%MZ"), "today": today.isoformat(), "kind": config.SITE_KIND,
+        "generated": now.strftime("%Y-%m-%dT%H:%MZ"), "today": today.isoformat(), "country": country,
+        "kind": st["kind"],
         "sources": sources, "regions": regions, "sites": rows, "signals": signals, "chains": chains})
     _dump(docs / "datos" / "municipios.json",
           [[m["ine"], m["name"], m["province"], *m["point"], m["sites"], m["region"]] for m in munis])
@@ -58,35 +68,47 @@ def build(sites: dict[str, dict], n: dict[str, dict], signals: list[dict], chain
     _dump(docs / "sitios.geojson", {"type": "FeatureCollection", "features": [
         {"type": "Feature", "properties": {"code": c, "name": s["name"]}, "geometry": s["geometry"]}
         for c, s in sites.items()]})
-    for f in ("app.css", "app.js"):
-        shutil.copyfile(HERE / "static" / f, docs / f)
-    _rss(docs / "rss", sites, regions, signals)
+    if country == "ES":  # one copy for every country's page
+        for f in ("app.css", "app.js"):
+            shutil.copyfile(HERE / "static" / f, docs / f)
+    _rss(docs / "rss", sites, regions, signals, country)
 
-    figures = _figures(n, signals)
-    html = PAGE
+    figures = _figures(n, signals, sources, lang)
+    html = PAGE if country == "ES" else page_fr.PAGE
     for key, val in {
         "__LOGO__": LOGO_SVG, "__FAVICON__": favicon_link(*config.ACCENT), "/*__COMMON_CSS__*/": COMMON_CSS,
-        "__N_SITES__": _es(len(sites)), "__PARAMS__": _params(), "__GENERATED__": now.strftime("%Y-%m-%d %H:%M UTC"),
+        "__N_SITES__": i18n.n(len(sites), lang), "__N_MUNIS__": i18n.n(sum(bool(m["sites"]) for m in munis), lang),
+        "__N_REGIONS__": i18n.n(len(regs), lang),
+        "__PARAMS__": _params() if country == "ES" else page_fr.params(),
+        "__GENERATED__": now.strftime("%Y-%m-%d %H:%M UTC"), "__I18N__": _settings(country),
         "__VERSION__": now.strftime("%Y%m%d%H%M"), **{f"__FIG_{k.upper()}__": v for k, v in figures.items()},
     }.items():
         html = html.replace(key, val)
     (docs / "index.html").write_text(html, encoding="utf-8")
 
 
-def _figures(n: dict[str, dict], signals: list[dict]) -> dict[str, str]:
+def _settings(country: str) -> str:
+    """The page's strings and settings for app.js, inline: one request less, and no flash of another language."""
+    js = (f"window.I18N={json.dumps(i18n.UI[i18n.LANG_BY_COUNTRY[country]], ensure_ascii=False)};"
+          f"window.PAGE={json.dumps(i18n.page(country), ensure_ascii=False)};")
+    return "<script>" + js.replace("</", "<\\/") + "</script>"
+
+
+def _figures(n: dict[str, dict], signals: list[dict], sources: dict, lang: str = "es") -> dict[str, str]:
     rivers = [s for s in signals if s["kind"] == "river_flow"]
     wet = [s for s in signals if s["kind"] == "wetland_water" and s["details"]["current"] and s["details"]["ratio"] is not None]
+    lit = sources.get("black-marble", {}).get("sites")
     return {
-        "precise": _es(sum(x["precise"] > 0 for x in n.values())),
-        "open": _es(sum(x["open"] > 0 for x in n.values())),
-        "fire": _es(sum(x["fire_ha"] > 0 for x in n.values())),
-        "rivers": _es(len(rivers)),
+        "precise": i18n.n(sum(x["precise"] > 0 for x in n.values()), lang),
+        "open": i18n.n(sum(x["open"] > 0 for x in n.values()), lang),
+        "fire": i18n.n(sum(x["fire_ha"] > 0 for x in n.values()), lang),
+        "rivers": i18n.n(len(rivers), lang),
         "wet": f"{sum(s['details']['ratio'] < 0.75 for s in wet)} de {len(wet)}" if wet else "—",
+        # no measure yet is «—», never 0: a zero would read as «nothing rises»
+        "light": i18n.n(len({x["code"] for s in signals if s["kind"] == "night_light" for x in s["sites"]}), lang)
+                 if lit else "—",
+        "light_sites": i18n.n(len(lit), lang) if lit else "—",
     }
-
-
-def _es(x: float) -> str:
-    return f"{x:,}".replace(",", ".")
 
 
 def _rounded(geom: dict, nd: int = 3) -> dict:
@@ -95,9 +117,12 @@ def _rounded(geom: dict, nd: int = 3) -> dict:
     return {"type": geom["type"], "coordinates": r(geom["coordinates"])}
 
 
-def _rss(folder: Path, sites: dict[str, dict], regions: list[dict], signals: list[dict]) -> None:
-    """One feed per site and one per community, newest first. No build date in the channel, so an
-    unchanged place gives an unchanged file and the daily commit only touches what moved."""
+def _rss(folder: Path, sites: dict[str, dict], regions: list[dict], signals: list[dict], country: str = "ES") -> None:
+    """One feed per site and one per community (region in France), newest first, in the country's language.
+    No build date in the channel, so an unchanged place gives an unchanged file and the daily commit
+    only touches what moved."""
+    lang = i18n.LANG_BY_COUNTRY[country]
+    T, home = i18n.PY[lang], config.PAGES + i18n.SETTINGS[country]["route"]
     folder.mkdir(parents=True, exist_ok=True)
     by_site: dict[str, list[dict]] = {}
     by_region: dict[str, list[dict]] = {}
@@ -107,30 +132,29 @@ def _rss(folder: Path, sites: dict[str, dict], regions: list[dict], signals: lis
         for r in s.get("regions", []) if s["sites"] else []:  # a community feed follows its sites, like its page
             by_region.setdefault(r, []).append(s)
     for code, site in sites.items():
-        _feed(folder / f"{code}.xml", site["name"], f"#/e/{code}",
-              f"Proyectos, fuego, cambios de uso, agua, aerogeneradores, tendidos y luz de noche en {site['name']} ({code}).",
-              by_site.get(code, []), lambda s, name=site["name"]: name)
+        _feed(folder / f"{code}.xml", site["name"], f"#/e/{code}", T["feed_site"].format(name=site["name"], code=code),
+              by_site.get(code, []), lambda s, name=site["name"]: name, lang, home)
     for r in regions:
-        _feed(folder / f"ca-{r['id']}.xml", r["name"], f"#/ca/{r['id']}",
-              f"Proyectos, fuego, cambios de uso, agua, aerogeneradores, tendidos y luz de noche en los espacios y municipios "
-              f"de {r['official']}.",
+        _feed(folder / f"ca-{r['id']}.xml", r["name"], f"#/ca/{r['id']}", T["feed_region"].format(name=r["official"]),
               by_region.get(r["id"], []),
-              lambda s: "; ".join(sites[x["code"]]["name"] for x in s["sites"][:3]) or "Por municipio")
+              lambda s: "; ".join(sites[x["code"]]["name"] for x in s["sites"][:3]) or T["feed_by_muni"], lang, home)
 
 
-def _feed(path: Path, name: str, route: str, about: str, signals: list[dict], where) -> None:
+def _feed(path: Path, name: str, route: str, about: str, signals: list[dict], where, lang: str = "es",
+          home: str = f"{config.PAGES}/estado-iba/") -> None:
+    T = i18n.PY[lang]
     items = []
     for s in signals[:40]:
         when = datetime.fromisoformat(s["date"][:10] + "T08:00:00+00:00")
-        extra = f" Plazo de alegaciones hasta el {s['deadline']}." if s["kind"] == "notice" and s["deadline"] else ""
-        items.append(f"<item><title>{escape(s['title'])}</title><link>{config.PAGES}/estado-iba/#/a/{quote(s['source'], safe='')}/{quote(s['id'], safe='')}</link>"
+        extra = T["feed_deadline"].format(date=s["deadline"]) if s["kind"] == "notice" and s["deadline"] else ""
+        items.append(f"<item><title>{escape(s['title'])}</title><link>{home}#/a/{quote(s['source'], safe='')}/{quote(s['id'], safe='')}</link>"
                      f"<guid isPermaLink=\"false\">{escape(s['source'] + ':' + s['id'])}</guid>"
                      f"<pubDate>{format_datetime(when)}</pubDate>"
                      f"<description>{escape(where(s) + '.' + extra)}</description></item>")
     xml = ('<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0"><channel>'
-           f"<title>{escape(name)} · Estado de las IBA</title><link>{config.PAGES}/estado-iba/{route}</link>"
+           f"<title>{escape(T['feed_title'].format(name=name))}</title><link>{home}{route}</link>"
            f"<description>{escape(about)}</description>"
-           f"<language>es</language>{''.join(items)}</channel></rss>\n")
+           f"<language>{lang}</language>{''.join(items)}</channel></rss>\n")
     path.write_text(xml, encoding="utf-8")
 
 
@@ -175,12 +199,13 @@ __FAVICON__
 /*__COMMON_CSS__*/
 </style>
 <link rel="stylesheet" href="app.css?v=__VERSION__">
+<link rel="alternate" hreflang="fr" href="https://asensio94.github.io/estado-iba/fr/">
 </head>
 <body>
 <header class="site-header">
   <div>
     <h1><a href="#/">__LOGO__Estado de las <span>IBA</span></a></h1>
-    <span class="rotulo">España · __N_SITES__ espacios para las aves · cada día</span>
+    <span class="rotulo">España · __N_SITES__ espacios para las aves · cada día · <a href="fr/" hreflang="fr" lang="fr">France</a></span>
   </div>
   <p class="lede">Qué les está pasando a los espacios importantes para las aves: los proyectos que se someten a evaluación ambiental, el fuego, los cambios de uso del suelo, el agua de sus humedales y ríos, los aerogeneradores y tendidos peligrosos y la luz artificial de noche. Busca un espacio, tu municipio o tu comunidad para ver todo lo que hay, quién está detrás y qué puedes hacer.</p>
   <p class="aviso-unidad">Por ahora la unidad son las <b>ZEPA</b> (zonas de especial protección para las aves de la Red Natura 2000), que son datos abiertos. Las IBA de SEO/BirdLife entrarán cuando su reutilización esté acordada.</p>
@@ -245,6 +270,7 @@ __FAVICON__
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+__I18N__
 <script src="app.js?v=__VERSION__"></script>
 </body>
 </html>

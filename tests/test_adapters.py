@@ -183,7 +183,7 @@ def test_published_resolves_names_places_points_and_drops_incomplete():
 
 
 def test_published_refuses_another_source_or_version():
-    for doc in (_doc([], source="otro"), _doc([], version=2)):
+    for doc in (_doc([], source="otro"), _doc([], version=3)):
         with pytest.raises(ValueError):
             A.published(doc, "s", resolve, lambda lon, lat: ([], []))
 
