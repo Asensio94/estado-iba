@@ -6,8 +6,30 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 DOCS_DIR = ROOT / "docs"
 
+OWNER = "Asensio94"
 PAGES = "https://asensio94.github.io"
-RAW = "https://raw.githubusercontent.com/Asensio94"
+RAW = f"https://raw.githubusercontent.com/{OWNER}"
+API = "https://api.github.com"
+
+# Every sibling with a bot, for the daily health check, and how many days its signals.json may
+# age before it counts as stale (None: no limit). Each figure leaves a margin over its cron.
+SIBLINGS = {
+    "observatorio-alegaciones": 3,  # Monday to Saturday
+    "vigia-incendios": 2,  # hourly
+    "centinela-natura": 3,
+    "vigilancia-humedales": 3,
+    "caudal-ecologico": 3,
+    "sub-nocte": 3,
+    "grafo-promotores": 3,  # Monday to Saturday
+    "cartera-cotizadas": 3,  # Monday to Saturday
+    "depuracion-y-bano": 10,  # weekly
+    "riesgo-tendidos-aves": 35,  # monthly
+    "zona-inundable": 35,  # monthly
+    "quien-tiene-sombra": 400,  # yearly
+    "barbechos-esteparias": None,  # by hand, once a campaign
+    "cuaderno-campo": None,  # published on push
+    "estado-iba": 2,
+}
 
 # Site units. Until SEO/BirdLife clears the reuse of the IBA layer, the panel works on the
 # Special Protection Areas (ZEPA) of Natura 2000: open data, and the legal figure most IBAs

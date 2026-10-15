@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import traceback
 from datetime import date, datetime, timezone
 from functools import partial
 from pathlib import Path
 
-from . import adapters as A, config, indicators as I, places, sources, web
+from . import adapters as A, config, contract, health as H, indicators as I, places, sources, web
 
 # Name, link and what each source watches, as the site card says it.
 SOURCES = {
@@ -175,17 +176,51 @@ def check(name: str, where: str, today: date | None = None) -> bool:
     return same
 
 
+def validate(name: str, where: str) -> bool:
+    """A signals.json (a path or a URL) against the contract, strictly. Needs no network for a path."""
+    doc = sources.get_json(where) if where.startswith("http") else json.loads(Path(where).read_text(encoding="utf-8"))
+    rep = contract.validate(doc, name)
+    n = len(doc.get("signals") or []) if isinstance(doc, dict) else 0
+    print(f"{name}: {n} señales")
+    for line in contract.describe(rep):
+        print(f"- {line}")
+    print("Cumple el contrato." if rep.ok else "No cumple el contrato.")
+    return rep.ok
+
+
+def health(today: date, issue: bool) -> bool:
+    """Check every sibling; with --issue, keep the health issue of this repository up to date."""
+    token = os.environ.get("GITHUB_TOKEN")
+    findings = H.check(today, token, set(SOURCES))
+    body = H.report(findings, list(config.SIBLINGS), today)
+    print(body)
+    if issue:
+        repository = os.environ.get("GITHUB_REPOSITORY", f"{config.OWNER}/estado-iba")
+        if not token:
+            sys.exit("health --issue needs GITHUB_TOKEN")
+        print(f"\nIssue: {H.sync_issue(findings, body, repository, token)}")
+    return not any(f.level == "error" for f in findings)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="estado")
-    ap.add_argument("command", choices=["build", "check"])
-    ap.add_argument("source", nargs="?", help="check: the sibling, as in SOURCES")
-    ap.add_argument("signals", nargs="?", help="check: its signals.json, a path or a URL")
+    ap.add_argument("command", choices=["build", "check", "validate", "health"])
+    ap.add_argument("source", nargs="?", help="check, validate: the sibling's repository name")
+    ap.add_argument("signals", nargs="?", help="check, validate: its signals.json, a path or a URL")
     ap.add_argument("--today", type=date.fromisoformat, default=None)
+    ap.add_argument("--issue", action="store_true", help="health: open, update or close the health issue")
     args = ap.parse_args()
     if args.command == "build":
         build(args.today)
-    elif not (args.source in SOURCES and args.signals):
-        ap.error("check needs a source and its signals.json")
+    elif args.command == "health":
+        ok = health(args.today or datetime.now(timezone.utc).date(), args.issue)
+        sys.exit(0 if ok or args.issue else 1)  # with --issue the alert is the issue, not a red run
+    elif not (args.source and args.signals):
+        ap.error(f"{args.command} needs a source and its signals.json")
+    elif args.command == "validate":
+        sys.exit(0 if validate(args.source, args.signals) else 1)
+    elif args.source not in SOURCES:
+        ap.error(f"check: {args.source} is not one of the panel's sources")
     else:
         sys.exit(0 if check(args.source, args.signals, args.today) else 1)
 

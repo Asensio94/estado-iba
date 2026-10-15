@@ -1,0 +1,27 @@
+name: Salud
+
+on:
+  schedule:
+    - cron: "0 11 * * *"  # after every daily sibling, cartera (10:30) included
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Check the siblings and update the issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONIOENCODING: utf-8
+        run: python -m estado.cli health --issue >> "$GITHUB_STEP_SUMMARY"
