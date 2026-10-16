@@ -15,7 +15,7 @@ concurrency:
 jobs:
   luz:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 200
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,16 +24,21 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt pytest
       - run: python -m pytest -q
-      - name: Night light per site
-        timeout-minutes: 100  # the first run downloads every year since 2012 (~8 GB); later ones, a year at most
+      - name: Night light per site, Spain and France
+        id: luz
+        # the first run of a country downloads every year since 2012 (~8 GB Spain, ~5 GB France); later ones, a year at most
+        timeout-minutes: 180
         env:
           EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
           EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
         run: python -m estado.cli luz
+      # One country failing still fails the run, but the other's new light is built and kept.
       - name: Rebuild the panel if the light changed
+        if: (success() || failure()) && steps.luz.outcome != 'skipped'
         run: |
-          if [ -n "$(git status --porcelain docs/datos/luz.json)" ]; then python -m estado.cli build; fi
+          if [ -n "$(git status --porcelain docs/datos/luz.json docs/fr/datos/luz.json)" ]; then python -m estado.cli build; fi
       - name: Commit docs
+        if: (success() || failure()) && steps.luz.outcome != 'skipped'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

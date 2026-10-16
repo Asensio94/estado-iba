@@ -65,6 +65,9 @@ LINE_REGIONS = ["cantabria", "estrecho"]
 # Pressure: artificial light at night from NASA Black Marble (VNP46A4, yearly). No sibling reads it:
 # `python -m estado.cli luz` keeps the per-site series here once a month (Earthdata Login needed).
 LIGHT_FILE = DOCS_DIR / "datos" / "luz.json"
+# Each country keeps its own series: its sites are held to their own peers, and adding one does not
+# make the other download its tiles again.
+LIGHT_FILES = {"ES": LIGHT_FILE, "FR": DOCS_DIR / "fr" / "datos" / "luz.json"}
 LIGHT_PAGE = "https://blackmarble.gsfc.nasa.gov/"
 LIGHT_BASELINE = (2012, 2014)  # the first three years of VIIRS
 LIGHT_RECENT = 2  # years averaged as «now», so one odd year makes no signal
@@ -85,3 +88,7 @@ WETLAND_MIN_YEARS = 3  # same-month reference needs at least this many earlier y
 WETLAND_MAX_AGE_DAYS = 45  # an older observation is shown, but not as the current state
 
 ACCENT = ("#a3336e", "#ec8fc0")
+
+# France (wave 0): its SPAs (ZPS) from the EEA and its communes from the IGN, see france.py. No
+# sibling watches France yet, so its page has the night light and the birds, and says what is missing.
+COUNTRIES = ("ES", "FR")

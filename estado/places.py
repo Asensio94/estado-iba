@@ -1,4 +1,7 @@
-"""Municipalities: decode the IGN TopoJSON, cross it with the sites, and match names to INE codes."""
+"""Municipalities: decode the IGN TopoJSON, cross it with the sites, and match names to INE codes.
+
+France's communes (INSEE codes) go through the same crossing, from the reference france.py keeps.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +12,7 @@ from shapely import STRtree, make_valid, unary_union
 from shapely.geometry import shape
 
 KM2_DEG2 = 1.06e-4  # one km² in square degrees around 40° N; good enough for a threshold
+KM2_DEG2_FR = 1.17e-4  # the same around 46.5° N
 
 
 def polygonal(geometry: dict):
@@ -95,17 +99,11 @@ def municipalities(topo: dict, sites: dict[str, dict], regs: list[dict], min_km2
         return regs[hit[0]]["id"] if len(hit) else ""
 
     region_of = {f["id"]: region_at(polygonal(f["geometry"]).representative_point()) for f in provinces}
-    codes = list(sites)
-    geoms = [polygonal(sites[c]["geometry"]) for c in codes]
-    tree = STRtree(geoms)
+    overlaps = _crossing(sites, min_km2 * KM2_DEG2, min_share, min_site_share)
     out = []
     for f in topo_features(topo, "municipalities"):
         g = polygonal(f["geometry"])
-        hits = []
-        for i in tree.query(g, predicate="intersects"):
-            area = g.intersection(geoms[i]).area
-            if area >= min_km2 * KM2_DEG2 or area >= min_share * g.area or area >= min_site_share * geoms[i].area:
-                hits.append(codes[i])
+        hits = overlaps(g)
         # Simplified into a line, a municipality has no area left (53046, in Burgos) but still a place.
         c = shape(f["geometry"]).centroid if g.is_empty else g.representative_point()
         prov = f["id"][:2]
@@ -114,6 +112,51 @@ def municipalities(topo: dict, sites: dict[str, dict], regs: list[dict], min_km2
         out.append({"ine": f["id"], "name": f["properties"]["name"], "province": names.get(prov, ""),
                     "region": region_of.get(prov) or region_at(c), "point": [round(c.x, 4), round(c.y, 4)],
                     "sites": sorted(hits), "geom": g})
+    return out
+
+
+def _crossing(sites: dict[str, dict], min_area: float, min_share: float, min_site_share: float):
+    """municipality shape -> the codes of the sites it overlaps enough (see municipalities)."""
+    codes = list(sites)
+    geoms = [polygonal(sites[c]["geometry"]) for c in codes]
+    tree = STRtree(geoms)
+
+    def overlaps(g) -> list[str]:
+        hits = []
+        for i in tree.query(g, predicate="intersects"):
+            area = g.intersection(geoms[i]).area
+            if area >= min_area or area >= min_share * g.area or area >= min_site_share * geoms[i].area:
+                hits.append(codes[i])
+        return sorted(hits)
+
+    return overlaps
+
+
+def regions_fr(ref: dict) -> list[dict]:
+    """The metropolitan regions of France, from the reference france.py keeps."""
+    return [{"id": r["id"], "name": r["name"], "official": r["name"], "geom": polygonal(r["geometry"])}
+            for r in ref["regions"]]
+
+
+def communes_fr(ref: dict, sites: dict[str, dict], min_km2: float = 1.0, min_share: float = 0.1,
+                min_site_share: float = 0.25) -> list[dict]:
+    """Every metropolitan commune with its department, region and the sites it overlaps.
+
+    Same rule and same dict as the Spanish municipalities: «ine» holds the INSEE code (2A004 in
+    Corsica) and «province» the department. The IGN gives each commune its region, so there is no
+    point to look up.
+    """
+    overlaps = _crossing(sites, min_km2 * KM2_DEG2_FR, min_share, min_site_share)
+    out = []
+    for code, name, dept, region, geometry in ref["communes"]:
+        g = polygonal(geometry) if geometry else None
+        empty = g is None or g.is_empty
+        c = (shape(geometry).centroid if geometry else None) if empty else g.representative_point()
+        if c is None or c.is_empty:
+            continue
+        out.append({"ine": code, "name": name, "province": ref["departments"].get(dept, ""), "region": region,
+                    "point": [round(c.x, 4), round(c.y, 4)], "sites": [] if empty else overlaps(g),
+                    "geom": g if g is not None else shape(geometry)})
     return out
 
 
@@ -160,15 +203,20 @@ def locator(munis: list[dict], shapes: dict, tolerance: float = 0.005):
     return locate
 
 
-def name_key(s: str) -> str:
+# Articles a place name may start with, or carry at the end after a comma, in each country.
+ARTICLES = {"ES": "el|la|los|las|lo|o|a|os|as|es|sa|ses|els|les", "FR": "le|la|les"}
+
+
+def name_key(s: str, country: str = "ES") -> str:
     """Comparable form of a place name: no accents, articles moved or dropped, no punctuation.
 
     «Barrios, Los», «Los Barrios» and «LOS BARRIOS» all give «barrios»; bilingual names keep
-    each side so «Alacant/Alicante» matches either.
+    each side so «Alacant/Alicante» matches either. In France, «Le Havre» and «Havre, Le» give «havre».
     """
+    art = ARTICLES[country]
     s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn").lower()
-    s = re.sub(r",\s*(el|la|los|las|l'|lo|o|a|os|as|es|sa|ses|els|les)$", "", s.strip())
-    s = re.sub(r"^(el|la|los|las|lo|o|a|os|as|es|sa|ses|els|les)\s+|^l'", "", s)
+    s = re.sub(rf",\s*({art}|l')$", "", s.strip())
+    s = re.sub(rf"^({art})\s+|^l'", "", s)
     return re.sub(r"[^a-z0-9]+", "", s)
 
 
@@ -176,21 +224,22 @@ def _plain(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn").lower().strip()
 
 
-def name_index(munis: list[dict]) -> dict[str, list[dict]]:
+def name_index(munis: list[dict], country: str = "ES") -> dict[str, list[dict]]:
     idx: dict[str, list[dict]] = {}
     for m in munis:
         for part in re.split(r"\s*/\s*", m["name"]):
-            idx.setdefault(name_key(part), []).append(m)
+            idx.setdefault(name_key(part, country), []).append(m)
     return idx
 
 
-def resolve(idx: dict[str, list[dict]], name: str, provinces: list[str] | None = None) -> str | None:
-    """INE code for a municipality name; provinces break ties between homonyms."""
-    hits = idx.get(name_key(name), [])
+def resolve(idx: dict[str, list[dict]], name: str, provinces: list[str] | None = None,
+            country: str = "ES") -> str | None:
+    """INE (or INSEE) code for a municipality name; provinces (departments) break ties between homonyms."""
+    hits = idx.get(name_key(name, country), [])
     if len(hits) > 1:  # «Granada» before «La Granada»: an exact name wins over one that only matches without its article
         exact = [m for m in hits if _plain(m["name"]) == _plain(name)]
         hits = exact or hits
     if len(hits) > 1 and provinces:
-        keys = {name_key(p) for p in provinces}
-        hits = [m for m in hits if name_key(m["province"]) in keys] or hits
+        keys = {name_key(p, country) for p in provinces}
+        hits = [m for m in hits if name_key(m["province"], country) in keys] or hits
     return hits[0]["ine"] if len({h["ine"] for h in hits}) == 1 else None

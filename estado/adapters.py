@@ -3,7 +3,7 @@
 A sibling that publishes its own signals.json is read with `published`. The others still have
 one function each here, which reads their internal files; each returns (coverage, signals).
 Municipality names are resolved to INE codes with `resolve`, a callable
-(name, provinces) -> code | None built from the IGN layer.
+(name, provinces) -> code | None built from the IGN layer (INSEE codes and IGN Admin Express in France).
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from typing import Callable
 from shapely import STRtree, box
 from shapely.geometry import Point
 
-from . import config
+from . import config, i18n
 
 Resolve = Callable[[str, list[str]], "str | None"]
 
@@ -34,7 +34,8 @@ def promoter(name: str | None) -> str | None:
 
 
 def _signal(source: str, id: str, kind: str, day: str, title: str, url: str, precision: str, **kw) -> dict:
-    return {"source": source, "id": id, "kind": kind, "date": day, "title": title, "url": url,
+    return {"source": source, "country": kw.pop("country", "ES"), "id": id, "kind": kind, "date": day,
+            "title": title, "url": url,
             "sites": kw.pop("sites", []), "municipalities": kw.pop("municipalities", []),
             "precision": precision, "deadline": kw.pop("deadline", None), "status": kw.pop("status", None),
             "value": kw.pop("value", None), "details": kw}
@@ -48,19 +49,51 @@ KINDS = {"notice", "resolution", "fire", "land_change", "wetland_water", "river_
          "flood_building", "night_light", "wastewater", "bathing_water"}
 REQUIRED = ("id", "kind", "date", "title", "url", "precision")
 COUNTS = {"flood_building"}  # stock counts per place: a zero is «nothing to report», not a signal
+# Municipality codes: INE in Spain, INSEE in France (Corsica's departments are 2A and 2B).
+MUNI_CODE = {"ES": re.compile(r"^\d{5}$"), "FR": re.compile(r"^(\d{5}|2[AB]\d{3})$")}
 
 
-def published(doc: dict, source: str, resolve: Resolve, locate: Callable) -> tuple[dict, list[dict]]:
-    """A sibling's own signals.json (CONTRATO.md, version 1), checked and placed.
+def schema_errors(doc: dict) -> list[str]:
+    """Where a signals.json breaks the contract's JSON Schema (versions 1 and 2), as «path: message»."""
+    from jsonschema import Draft202012Validator
+
+    from . import contract
+
+    v = Draft202012Validator(contract.schema())
+    return [f"{'/'.join(map(str, e.absolute_path)) or '(raíz)'}: {e.message}"
+            for e in sorted(v.iter_errors(doc), key=lambda e: list(map(str, e.absolute_path)))]
+
+
+def published(doc: dict, source: str, resolve: Resolve, locate: Callable,
+              country: str = "ES") -> tuple[dict, list[dict]] | None:
+    """One country's part of a sibling's own signals.json (CONTRATO.md, versions 1 and 2), checked and placed.
+
+    Version 1 is all Spain. In version 2 each signal names its country and the coverage is given
+    per country; a country the file gives no coverage for is not covered by it (None), and its
+    signals, if any, are dropped: a fact with no coverage could not be read against what is watched.
 
     A signal missing a required field, or of a kind the map cannot draw, is dropped: every figure
-    must be checkable. Municipality names become INE codes here, so a sibling need not carry the
-    IGN layer; a «punto» signal with no place at all gets its sites and municipality from its point.
+    must be checkable. So is a municipality code not of the country's form. Municipality names
+    become codes here, so a sibling need not carry the IGN layer; a «punto» signal with no place at
+    all gets its sites and municipality from its point.
     """
-    if doc.get("version") != 1 or doc.get("source") != source:
-        raise ValueError(f"signals.json de {doc.get('source')!r}, versión {doc.get('version')!r}")
+    version = doc.get("version")
+    if version not in (1, 2) or doc.get("source") != source:
+        raise ValueError(f"signals.json de {doc.get('source')!r}, versión {version!r}")
+    if version == 1:
+        if country != "ES":
+            return None
+        cov, signals = doc["coverage"], doc["signals"]
+    else:
+        cov = doc["coverage"].get(country)
+        signals = [s for s in doc["signals"] if s.get("country") == country]
+        if cov is None:
+            if signals:
+                print(f"[{source}] signals.json: {len(signals)} señales de {country} sin cobertura, descartadas",
+                      file=sys.stderr)
+            return None
     out, dropped = [], 0
-    for s in doc["signals"]:
+    for s in signals:
         if not all(s.get(k) for k in REQUIRED) or s["kind"] not in KINDS:
             dropped += 1
             continue
@@ -70,18 +103,18 @@ def published(doc: dict, source: str, resolve: Resolve, locate: Callable) -> tup
         if "promoter" in details:  # whoever sends it
             details = {**details, "promoter": promoter(details["promoter"])}
         sites = [x for x in s.get("sites") or [] if x.get("code")]
-        munis = sorted(set(s.get("municipalities") or [])
+        munis = sorted({c for c in s.get("municipalities") or [] if MUNI_CODE[country].match(str(c))}
                        | set(_munis(resolve, s.get("municipality_names"), s.get("provinces"))))
         if s["precision"] == "punto" and details.get("point") and not sites and not munis:
             codes, munis = locate(*details["point"])
             sites = [{"code": c} for c in codes]
-        out.append({"source": source, "id": str(s["id"]), "kind": s["kind"], "date": s["date"], "title": s["title"],
+        out.append({"source": source, "country": country, "id": str(s["id"]), "kind": s["kind"], "date": s["date"],
+                    "title": s["title"],
                     "url": s["url"], "sites": sites, "municipalities": munis, "precision": s["precision"],
                     "deadline": s.get("deadline"), "status": s.get("status"), "value": s.get("value"),
                     "details": details})
     if dropped:
         print(f"[{source}] signals.json: {dropped} señales incompletas descartadas", file=sys.stderr)
-    cov = doc["coverage"]
     return {"label": cov["label"], "sites": cov.get("sites"), "note": cov.get("note", "")}, out
 
 
@@ -379,7 +412,7 @@ def tendidos(regions: dict[str, tuple[list[dict], str]], shapes: dict, high_shar
 
 
 def luz(doc: dict, shapes: dict, baseline: tuple[int, int], recent: int, min_rise: float, min_abs: float,
-        min_pixels: int, peers: int) -> tuple[dict, list[dict]]:
+        min_pixels: int, peers: int, country: str = "ES") -> tuple[dict, list[dict]]:
     """Sites where artificial light at night has grown more than in sites as dark as they were (NASA Black Marble).
 
     «Before» is the mean of the baseline years and «now» the mean of the last `recent` ones, so one
@@ -392,7 +425,15 @@ def luz(doc: dict, shapes: dict, baseline: tuple[int, int], recent: int, min_ris
     for LEDs reads darker without being so, while a rise is, if anything, short. A site of fewer than
     min_pixels pixels is not judged, and neither is one with no light at all in the baseline: there is
     no share of nothing.
+
+    Each country has its own file and is held to its own sites; titles and coverage are in its language.
     """
+    lang = i18n.LANG_BY_COUNTRY[country]
+    T = i18n.PY[lang]
+
+    def pc(x: int) -> str:
+        return f"{x}{chr(0x202f) if lang == 'fr' else ' '}%"
+
     years = doc["years"]
     before = [i for i, y in enumerate(years) if baseline[0] <= y <= baseline[1]]
     now = [i for i in range(len(years))[-recent:] if i not in before]
@@ -415,18 +456,15 @@ def luz(doc: dict, shapes: dict, baseline: tuple[int, int], recent: int, min_ris
         if cur - expected < min_abs or cur / expected - 1 < min_rise:
             continue
         pct, common, over = (round(100 * (x - 1)) for x in (cur / ref, drift, cur / expected))
-        them = f"subió un {common} %" if common >= 0 else f"bajó un {-common} %"
+        them = T["light_up"].format(pct=pc(common)) if common >= 0 else T["light_down"].format(pct=pc(-common))
         c = shapes[code].representative_point()
         out.append(_signal("black-marble", code, "night_light", f"{years[-1]}-12-31",
-                           f"La luz artificial de noche ha subido un {pct} % desde {baseline[0]}-{baseline[1]}; "
-                           f"en los espacios igual de oscuros, {them}", f"https://doi.org/{doc['doi']}", "pixeles",
-                           sites=[{"code": code}], value={"amount": over, "unit": "%"},
+                           T["light_title"].format(pct=pc(pct), b0=baseline[0], b1=baseline[1], them=them),
+                           f"https://doi.org/{doc['doi']}", "pixeles", country=country, sites=[{"code": code}], value={"amount": over, "unit": "%"},
                            radiance=round(cur, 2), baseline=round(ref, 2), expected=round(expected, 2),
                            pixels=doc["sites"][code]["pixels"], years=[years[now[0]], years[now[-1]]],
                            point=[round(c.x, 4), round(c.y, 4)]))
-    span = f"{years[0]}-{years[-1]}" if years else "sin años todavía"
-    cov = {"label": "Toda España", "sites": sorted(level), "baseline": list(baseline), "recent": recent,
-           "note": f"Brillo medio de noche de los píxeles VIIRS de cada espacio, un dato por año ({span}), comparado "
-                   "con los espacios que eran igual de oscuros. Solo se avisa de las subidas: el sensor no ve bien "
-                   "la luz azul de los LED blancos."}
+    span = f"{years[0]}-{years[-1]}" if years else T["light_no_years"]
+    cov = {"label": T["light_label"], "sites": sorted(level), "baseline": list(baseline), "recent": recent,
+           "note": T["light_note"].format(span=span)}
     return cov, out

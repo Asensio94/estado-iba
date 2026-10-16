@@ -2,71 +2,332 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/Asensio94/estado-iba/main/signals.schema.json",
   "title": "signals.json",
-  "description": "Señales que un proyecto hermano publica para Estado de las IBA. Versión 1. Ver CONTRATO.md.",
+  "description": "Señales que un proyecto hermano publica para Estado de las IBA. Versión 1: toda España. Versión 2: cada señal lleva su país y la cobertura va por país. Ver CONTRATO.md.",
   "type": "object",
-  "required": ["source", "version", "generated", "coverage", "signals"],
+  "required": [
+    "source",
+    "version",
+    "generated",
+    "coverage",
+    "signals"
+  ],
   "additionalProperties": false,
   "properties": {
-    "source": {"type": "string", "pattern": "^[a-z0-9-]+$", "description": "Nombre del repositorio que publica."},
-    "version": {"const": 1},
-    "generated": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?Z$", "description": "Fecha y hora UTC de generación."},
-    "coverage": {
-      "type": "object",
-      "required": ["label", "sites"],
-      "additionalProperties": false,
-      "properties": {
-        "label": {"type": "string", "minLength": 1},
-        "sites": {
-          "description": "null si vigila toda España; si no, los SITECODE que vigila.",
-          "oneOf": [{"type": "null"}, {"type": "array", "items": {"$ref": "#/$defs/sitecode"}}]
-        },
-        "note": {"type": "string"}
-      }
+    "source": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Nombre del repositorio que publica."
     },
-    "signals": {"type": "array", "items": {"$ref": "#/$defs/signal"}}
+    "version": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "generated": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?Z$",
+      "description": "Fecha y hora UTC de generación."
+    },
+    "coverage": {
+      "type": "object"
+    },
+    "signals": {
+      "type": "array"
+    }
+  },
+  "if": {
+    "properties": {
+      "version": {
+        "const": 1
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "coverage": {
+        "$ref": "#/$defs/coverage"
+      },
+      "signals": {
+        "items": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/signal"
+            },
+            {
+              "properties": {
+                "country": {
+                  "const": "ES"
+                },
+                "municipalities": {
+                  "items": {
+                    "$ref": "#/$defs/ine"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "coverage": {
+        "type": "object",
+        "minProperties": 1,
+        "propertyNames": {
+          "$ref": "#/$defs/country"
+        },
+        "additionalProperties": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "signals": {
+        "items": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/signal"
+            },
+            {
+              "required": [
+                "country"
+              ]
+            },
+            {
+              "if": {
+                "properties": {
+                  "country": {
+                    "const": "FR"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "municipalities": {
+                    "items": {
+                      "$ref": "#/$defs/insee"
+                    }
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "municipalities": {
+                    "items": {
+                      "$ref": "#/$defs/ine"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
   },
   "$defs": {
-    "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
-    "sitecode": {"type": "string", "pattern": "^[A-Z]{2}[A-Z0-9]{7}$"},
-    "signal": {
+    "country": {
+      "description": "ISO 3166-1 alfa-2 de los países que el hub conoce.",
+      "enum": [
+        "ES",
+        "FR"
+      ]
+    },
+    "ine": {
+      "description": "Código INE de municipio, 5 cifras.",
+      "type": "string",
+      "pattern": "^\\d{5}$"
+    },
+    "insee": {
+      "description": "Código INSEE de commune; Córcega usa 2A y 2B.",
+      "type": "string",
+      "pattern": "^(\\d{5}|2[AB]\\d{3})$"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "sitecode": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}[A-Z0-9]{7}$"
+    },
+    "coverage": {
       "type": "object",
-      "required": ["id", "kind", "date", "title", "url", "precision"],
+      "required": [
+        "label",
+        "sites"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "integer"}]},
-        "kind": {
-          "enum": ["notice", "resolution", "fire", "land_change", "wetland_water", "river_flow", "power_line",
-                   "migration", "flood_building", "night_light", "wastewater", "bathing_water"]
+        "label": {
+          "type": "string",
+          "minLength": 1
         },
-        "date": {"$ref": "#/$defs/date"},
-        "title": {"type": "string", "minLength": 1},
-        "url": {"type": "string", "pattern": "^https?://"},
+        "sites": {
+          "description": "null si vigila todo el país; si no, los SITECODE que vigila.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/sitecode"
+              }
+            }
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "signal": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "date",
+        "title",
+        "url",
+        "precision"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        },
+        "country": {
+          "$ref": "#/$defs/country"
+        },
+        "kind": {
+          "enum": [
+            "notice",
+            "resolution",
+            "fire",
+            "land_change",
+            "wetland_water",
+            "river_flow",
+            "power_line",
+            "migration",
+            "flood_building",
+            "night_light",
+            "wastewater",
+            "bathing_water"
+          ]
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
         "sites": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["code"],
+            "required": [
+              "code"
+            ],
             "additionalProperties": false,
             "properties": {
-              "code": {"$ref": "#/$defs/sitecode"},
-              "ha": {"type": ["number", "null"], "minimum": 0}
+              "code": {
+                "$ref": "#/$defs/sitecode"
+              },
+              "ha": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
             }
           }
         },
-        "municipalities": {"type": "array", "items": {"type": "string", "pattern": "^\\d{5}$"}},
-        "municipality_names": {"type": "array", "items": {"type": "string", "minLength": 1}},
-        "provinces": {"type": "array", "items": {"type": "string", "minLength": 1}},
-        "precision": {"enum": ["parcelas", "municipio", "perimetro", "focos", "punto", "lamina", "pixeles", "radar"]},
-        "deadline": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/date"}]},
-        "status": {"type": ["string", "null"]},
+        "municipalities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Códigos INE en España, INSEE en Francia (versión 2: según country)."
+        },
+        "municipality_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "provinces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "precision": {
+          "enum": [
+            "parcelas",
+            "municipio",
+            "perimetro",
+            "focos",
+            "punto",
+            "lamina",
+            "pixeles",
+            "radar"
+          ]
+        },
+        "deadline": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/date"
+            }
+          ]
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "value": {
           "oneOf": [
-            {"type": "null"},
+            {
+              "type": "null"
+            },
             {
               "type": "object",
-              "required": ["amount", "unit"],
+              "required": [
+                "amount",
+                "unit"
+              ],
               "additionalProperties": false,
-              "properties": {"amount": {"type": "number"}, "unit": {"type": "string", "minLength": 1}}
+              "properties": {
+                "amount": {
+                  "type": "number"
+                },
+                "unit": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
             }
           ]
         },
@@ -77,8 +338,16 @@
               "description": "[lon, lat] en WGS84.",
               "type": "array",
               "prefixItems": [
-                {"type": "number", "minimum": -180, "maximum": 180},
-                {"type": "number", "minimum": -90, "maximum": 90}
+                {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                }
               ],
               "minItems": 2,
               "maxItems": 2
