@@ -162,3 +162,12 @@ def test_french_feeds_speak_french_and_link_to_the_french_page(tmp_path):
     assert "<language>fr</language>" in xml and "Camargue · État des IBA" in xml
     assert f"{config.PAGES}/estado-iba/fr/#/a/black-marble/FR1" in xml
     assert "les sites et les communes de Provence" in (tmp_path / "ca-93.xml").read_text(encoding="utf-8")
+
+
+def test_the_light_figure_counts_the_sites_that_rise_once_there_is_light():
+    sig = {"kind": "night_light", "sites": [{"code": "FR1"}, {"code": "FR2"}]}
+    meta = {"black-marble": {"name": "NASA Black Marble", "coverage": {"label": "x", "sites": ["FR1", "FR2", "FR3"]}}}
+    got = web._figures({}, [sig], meta, "fr")
+    assert (got["light"], got["light_sites"]) == ("2", "3")
+    none = web._figures({}, [], {"black-marble": {"coverage": {"label": "x", "sites": []}}}, "fr")
+    assert (none["light"], none["light_sites"]) == ("—", "—")

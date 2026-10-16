@@ -97,7 +97,7 @@ def _settings(country: str) -> str:
 def _figures(n: dict[str, dict], signals: list[dict], sources: dict, lang: str = "es") -> dict[str, str]:
     rivers = [s for s in signals if s["kind"] == "river_flow"]
     wet = [s for s in signals if s["kind"] == "wetland_water" and s["details"]["current"] and s["details"]["ratio"] is not None]
-    lit = sources.get("black-marble", {}).get("sites")
+    lit = sources.get("black-marble", {}).get("coverage", {}).get("sites")  # sources: the meta of each source
     return {
         "precise": i18n.n(sum(x["precise"] > 0 for x in n.values()), lang),
         "open": i18n.n(sum(x["open"] > 0 for x in n.values()), lang),
