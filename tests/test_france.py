@@ -38,6 +38,16 @@ def test_a_version_1_file_is_spain_and_only_spain():
     assert A.published(doc, "s", resolve, nowhere, "FR") is None
 
 
+def test_a_version_1_file_keeps_out_the_signals_of_another_country(capsys):
+    # 44045 is Cordemais for INSEE and a municipality of Teruel for INE: a French fire must not land there.
+    doc = {"source": "s", "version": 1, "generated": "g", "coverage": {"label": "España y Francia", "sites": None},
+           "signals": [_sig("es", munis=["10131"]), _sig("es2", "ES", ["10131"]), _sig("fr", "FR", ["44045"])]}
+    _, out = A.published(doc, "s", resolve, nowhere)
+    assert [s["id"] for s in out] == ["es", "es2"]
+    assert "1 señales de otro país" in capsys.readouterr().err
+    assert A.published(doc, "s", resolve, nowhere, "FR") is None
+
+
 def test_version_2_reads_each_country_apart_and_codes_never_mix():
     # 13004 is Arles for INSEE and Albaladejo (Ciudad Real) for INE: only the signal's country tells them apart.
     doc = _v2([_sig("es", "ES", ["13004", "2A004"]), _sig("fr", "FR", ["13004", "2A004", "1300"])])

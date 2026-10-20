@@ -83,7 +83,13 @@ def published(doc: dict, source: str, resolve: Resolve, locate: Callable,
     if version == 1:
         if country != "ES":
             return None
-        cov, signals = doc["coverage"], doc["signals"]
+        cov = doc["coverage"]
+        # Version 1 is Spain. A signal that names another country does not belong in it, whatever its
+        # codes look like: an INSEE code can be a valid INE one (13004 is Arles and Albaladejo).
+        signals = [s for s in doc["signals"] if s.get("country", "ES") == "ES"]
+        if foreign := len(doc["signals"]) - len(signals):
+            print(f"[{source}] signals.json: {foreign} señales de otro país en un fichero de versión 1, descartadas "
+                  "(la versión 2 las lee en su país)", file=sys.stderr)
     else:
         cov = doc["coverage"].get(country)
         signals = [s for s in doc["signals"] if s.get("country") == country]
