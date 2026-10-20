@@ -515,12 +515,15 @@ _FR = {
         "flood_building": "Bâtiments du cadastre espagnol construits après 2016 dans les zones inondables "
                           "cartographiées par le SNCZI (lit majeur, crues de 100 et 500 ans). C'est un décompte de "
                           "toute la commune, pas un fait daté : la date est celle des données du cadastre.",
-        "wastewater": "Agglomération dont l'épuration n'est pas conforme à la directive européenne sur les eaux "
-                      "résiduaires urbaines, d'après le dernier rapport à l'Agence européenne pour l'environnement. "
-                      "C'est un indice : le point est le bourg, pas le rejet, et la date est celle de la situation "
-                      "déclarée.",
+        "wastewater": "Agglomération d'assainissement de 2 000 EH ou plus déclarée non conforme à la directive "
+                      "européenne sur les eaux résiduaires urbaines par les services de l'État (conformité "
+                      "réglementaire 2024, portail de l'assainissement collectif). Le titre dit sur quoi elle ne l'est "
+                      "pas : équipement, performance ou collecte. C'est le verdict de l'État, pas celui de la "
+                      "Commission européenne, et il porte sur une année ; la date est celle de sa dernière mise à "
+                      "jour.",
         "bathing_water": "Zone de baignade classée insuffisante la dernière saison pour la qualité microbiologique de "
-                         "l'eau. Les saisons comptent les années avec ce même classement.",
+                         "l'eau, d'après l'Agence européenne pour l'environnement et le ministère de la Santé. Les "
+                         "saisons comptent les années avec ce même classement.",
         "night_light": "Luminosité nocturne moyenne des pixels du site dans les images annuelles du satellite VIIRS "
                        "(NASA Black Marble), en moyenne sur les deux dernières années face aux trois premières, et "
                        "comparée à l'évolution des sites qui étaient aussi sombres : le produit monte et descend d'une "
@@ -540,8 +543,11 @@ _FR = {
         "luz": "Lumière nocturne en hausse", "migracion": "Migration cette nuit",
         "depuracion": "Épuration et baignade",
     },
-    # Only what some source watches in France: the night light, for now.
-    "indicators": {"light": "Plus de lumière artificielle la nuit"},
+    # Only what some source watches site by site in France.
+    "indicators": {
+        "light": "Plus de lumière artificielle la nuit",
+        "land": "Changements d'occupation du sol (Pyrénées-Atlantiques seulement)",
+    },
     "indicator_labels": {
         "precise": "projets dedans selon leurs parcelles", "open": "projets avec consultation ouverte",
         "notices": "projets dans leur commune", "fire_ha": "hectares brûlés",
@@ -587,10 +593,11 @@ _PY_ES = {
 }
 _PY_FR = {
     "feed_title": "{name} · État des IBA",
-    "feed_site": "Lumière artificielle la nuit et, quand une source les couvre, projets, feu, changements d'occupation "
-                 "du sol, eau, éoliennes et lignes électriques sur {name} ({code}).",
-    "feed_region": "Lumière artificielle la nuit et, quand une source les couvre, projets, feu, changements "
-                   "d'occupation du sol, eau, éoliennes et lignes électriques dans les sites et les communes de {name}.",
+    "feed_site": "Lumière artificielle la nuit, épuration et baignade et, quand une source les couvre, projets, feu, "
+                 "changements d'occupation du sol, eau, éoliennes et lignes électriques sur {name} ({code}).",
+    "feed_region": "Lumière artificielle la nuit, épuration et baignade et, quand une source les couvre, projets, feu, "
+                   "changements d'occupation du sol, eau, éoliennes et lignes électriques dans les sites et les "
+                   "communes de {name}.",
     "feed_by_muni": "Par commune",
     "feed_deadline": " Observations jusqu'au {date}.",
     "no_data": "pas de données aujourd'hui",
