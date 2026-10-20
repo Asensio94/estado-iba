@@ -84,7 +84,7 @@ function precTag(s) {
 function value(s) {
   if (!s.value || s.value.amount == null) return "";
   const a = s.value.amount;
-  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(s.value.unit)}${s.kind === "night_light" ? " " + t("more_than_expected") : ""}`;
+  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(T.units[s.value.unit] || s.value.unit)}${s.kind === "night_light" ? " " + t("more_than_expected") : ""}`;
 }
 function siteHa(s, code) {
   const x = (s.sites || []).find(z => z.code === code);
