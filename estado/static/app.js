@@ -18,6 +18,7 @@ const tn = (k, n, v = {}) => t(n === 1 && T[k + "_1"] != null ? k + "_1" : k, {n
 const pct_ = (n, d = 0) => t("pct", {n: num(n, d)});
 
 const KIND = T.kinds, PRECISION = T.precision, MEANS = T.means, PREC_NOTE = T.prec_note, LEVEL = T.level;
+const STATUS = s => esc(T.status[s.status] || s.status);
 
 /* Map layers: one per sibling. Colours were checked for colour-blind separation against the OSM
    tiles; each layer also has its own shape, so colour is never the only cue. The tiles stay light
@@ -177,7 +178,7 @@ function noche() {
   m.sort((a, b) => order[a.status] - order[b.status] || byName(a.details.city, b.details.city));
   return `<div class="panel" style="margin-bottom:22px"><h3>${t("h_tonight")}</h3>
     <p class="meta" style="margin:0 0 6px">${fecha(night)} · ${t("according_to")} <a href="${esc(D.sources["sub-nocte"].url)}">Sub Nocte</a></p>
-    <p style="margin:0;font-size:15px">${m.map(s => `${s.municipalities[0] ? `<a href="#/m/${esc(s.municipalities[0])}">${esc(s.details.city)}</a>` : esc(s.details.city)}: <b>${LEVEL[s.status] || esc(s.status)}</b>`).join(" · ")}</p></div>`;
+    <p style="margin:0;font-size:15px">${m.map(s => `${s.municipalities[0] ? `<a href="#/m/${esc(s.municipalities[0])}">${esc(s.details.city)}</a>` : esc(s.details.city)}: <b>${LEVEL[s.status] || STATUS(s)}</b>`).join(" · ")}</p></div>`;
 }
 
 function plazoItem(s, code) {
@@ -305,13 +306,13 @@ function marca(latlng, html, size, title, pop, keyboard, zIndexOffset = 0) {
 }
 function popup(s) {
   const sites = s.sites.slice(0, 3).map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ");
-  const status = s.status && !["notice", "migration"].includes(s.kind) ? " · " + esc(s.status) : "";
+  const status = s.status && !["notice", "migration"].includes(s.kind) ? " · " + STATUS(s) : "";
   return `<div class="pop">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a>
     <div class="meta">${fecha(s.date)}${value(s)}${status}${sites ? " · " + sites : ""}</div></div>`;
 }
 function popupNoche(s) {
   const ine = s.municipalities[0];
-  return `<div class="pop">${tag(s)}${ine ? `<a href="#/m/${esc(ine)}">${esc(s.details.city)}</a>` : esc(s.details.city)}: <b>${LEVEL[s.status] || esc(s.status)}</b>
+  return `<div class="pop">${tag(s)}${ine ? `<a href="#/m/${esc(ine)}">${esc(s.details.city)}</a>` : esc(s.details.city)}: <b>${LEVEL[s.status] || STATUS(s)}</b>
     <div class="meta">${t("night_of", {date: fecha(s.date)})} · ${t("according_to")} <a href="${esc(s.url)}">Sub Nocte</a></div></div>`;
 }
 function popupProyectos(x) {
@@ -579,7 +580,7 @@ function signalItem(s, code) {
   const d = s.details || {};
   const extra = [];
   if (s.kind === "notice") extra.push(s.deadline ? (s.deadline >= D.today ? t("comments_until", {date: fecha(s.deadline)}) : t("closed_on", {date: fecha(s.deadline)})) : t("no_known_deadline"));
-  if (s.status && s.kind !== "notice") extra.push(esc(s.status));
+  if (s.status && s.kind !== "notice") extra.push(STATUS(s));
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
   if (s.kind === "night_light") extra.push(t("light_line", {now: num(d.radiance, 2), before: num(d.baseline, 2), expected: num(d.expected, 2)}));
@@ -816,7 +817,7 @@ function datos(s) {
   if (s.kind === "notice") add(F.comments, s.deadline ? (s.deadline >= D.today ? `${t("until", {date: fecha(s.deadline)})} (${dias(s.deadline)})` : t("closed_on", {date: fecha(s.deadline)})) : t("no_known_deadline"));
   if (["notice", "resolution"].includes(s.kind)) add(F.promoter, esc(d.promoter));
   if (s.kind === "land_change") {
-    add(F.status, esc(s.status));
+    add(F.status, STATUS(s));
     add(F.area, `${num(s.value?.amount, 2)} ha`);
     add(F.cover, esc(d.cover));
     add(F.permit, esc(d.permit));
@@ -825,7 +826,7 @@ function datos(s) {
   } else if (s.kind === "fire") {
     add(F.area, s.value ? `${num(s.value.amount, 1)} ha` : null);
     add(F.province, esc(d.province));
-    add(F.status, esc(s.status));
+    add(F.status, STATUS(s));
   } else if (s.kind === "wetland_water") {
     add(F.water, `${num(s.value?.amount, 0)} ha`);
     add(F.normal, d.ref_ha != null ? t("normal_value", {ha: num(d.ref_ha, 0), from: d.ref_years?.[0], to: d.ref_years?.at(-1)}) : null);
@@ -841,9 +842,9 @@ function datos(s) {
     add(F.light_expected, `${num(d.expected, 2)} nW/cm²/sr`);
     add(F.pixels, num(d.pixels));
   } else if (s.kind === "migration") {
-    add(F.migration, LEVEL[s.status] || esc(s.status));
+    add(F.migration, LEVEL[s.status] || STATUS(s));
   } else {
-    add(F.status, esc(s.status));
+    add(F.status, STATUS(s));
   }
   if (s.kind !== "night_light") add(F.precision, PRECISION[s.precision]);  // its pixels are VIIRS, said above
   return out;

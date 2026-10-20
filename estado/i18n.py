@@ -289,6 +289,8 @@ _ES = {
                      "el proyecto puede quedar fuera.",
     },
     "level": {"very high": "muy alta", "high": "alta", "moderate": "moderada", "low": "baja"},
+    # Statuses the siblings send as canonical values, which are Spanish words.
+    "status": {"provisional": "provisional", "definitivo": "definitivo", "confirmada": "confirmada"},
     "layers": {
         "proyectos": "Proyectos en evaluación", "fuego": "Incendios en 12 meses", "suelo": "Cambios de uso del suelo",
         "humedales": "Agua de los humedales", "rios": "Caudal de los ríos",
@@ -536,6 +538,7 @@ _FR = {
                      "donc être en dehors.",
     },
     "level": {"very high": "très forte", "high": "forte", "moderate": "modérée", "low": "faible"},
+    "status": {"provisional": "provisoire", "definitivo": "définitif", "confirmada": "confirmée"},
     "layers": {
         "proyectos": "Projets en évaluation", "fuego": "Incendies sur 12 mois",
         "suelo": "Changements d'occupation du sol", "humedales": "Eau des zones humides",
