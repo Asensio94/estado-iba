@@ -20,8 +20,9 @@ from . import adapters as A, aves, config, contract, france, health as H, i18n, 
 
 # Name and what each source watches, as the site card says it (each language has its own in i18n).
 SOURCES = i18n.PY["es"]["sources"]
-# sub-nocte works per city, zona-inundable and depuracion-y-bano per municipality: not per site
-SITE_LEVEL = {k for k in SOURCES if k not in ("sub-nocte", "zona-inundable", "depuracion-y-bano")}
+# sub-nocte works per city; zona-inundable, depuracion-y-bano and acuiferos-francia (a piezometer measures an
+# aquifer, not the site above it) per municipality: not per site
+SITE_LEVEL = {k for k in SOURCES if k not in ("sub-nocte", "zona-inundable", "depuracion-y-bano", "acuiferos-francia")}
 # Read here from open data rather than from a sibling: no signals.json to look for, and their own link.
 OWN = {"black-marble": config.LIGHT_PAGE}
 

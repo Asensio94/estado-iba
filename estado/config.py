@@ -23,6 +23,7 @@ SIBLINGS = {
     "grafo-promotores": 3,  # Monday to Saturday
     "cartera-cotizadas": 3,  # Monday to Saturday
     "depuracion-y-bano": 10,  # weekly
+    "acuiferos-francia": 3,
     "riesgo-tendidos-aves": 35,  # monthly
     "zona-inundable": 35,  # monthly
     "quien-tiene-sombra": 400,  # yearly
