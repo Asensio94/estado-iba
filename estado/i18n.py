@@ -83,6 +83,7 @@ _ES = {
     "days_left": "quedan {n} días", "days_left_1": "queda {n} día",
     "by_muni": "por municipio",
     "more_than_expected": "más de lo esperable",
+    "below_usual": "por debajo de lo habitual", "above_usual": "por encima de lo habitual",
     "ha_inside": "{ha} ha dentro",
     "n_open": "{n} plazos abiertos", "n_open_1": "{n} plazo abierto",
     "none_open": "ningún plazo abierto",
@@ -222,9 +223,12 @@ _ES = {
         "high_risk": "Elementos de riesgo alto", "light_now": "Brillo reciente", "light_before": "Brillo en 2012-2014",
         "light_expected": "Esperable, como los igual de oscuros", "pixels": "Píxeles VIIRS",
         "migration": "Migración prevista", "precision": "Precisión",
+        "gw_class": "Nivel", "gw_month": "Mes evaluado", "gw_vs_usual": "Frente a lo habitual del mes",
+        "gw_level": "Nivel medio del mes", "gw_years": "Años de referencia", "water_body": "Masa de agua",
     },
     "normal_value": "{ha} ha (mediana de {from}-{to})",
     "x_of_y": "{x} de {y}",
+    "gw_prob": "probabilidad {p} entre {n} años", "gw_record": "el más bajo de la serie",
     "read_notice": "Leer el anuncio en el boletín",
     "see_nasa": "Ver el producto de la NASA",
     "see_in": "Ver en {name}",
@@ -252,6 +256,7 @@ _ES = {
         "night_light": {"tag": "Luz", "theme": "Luz artificial de noche"},
         "wastewater": {"tag": "Depuración", "theme": "Depuración y baño"},
         "bathing_water": {"tag": "Baño", "theme": "Depuración y baño"},
+        "groundwater_level": {"tag": "Acuífero", "theme": "Agua subterránea"},
     },
     "precision": {
         "parcelas": "cruce por parcelas", "municipio": "cruce por municipio", "perimetro": "perímetro Sentinel-2",
@@ -277,6 +282,12 @@ _ES = {
                       "núcleo urbano, no el vertido, y la fecha es la de la situación informada.",
         "bathing_water": "Zona de baño clasificada como insuficiente en la última temporada por la calidad "
                          "microbiológica del agua. Las temporadas cuentan los años con esa misma clasificación.",
+        "groundwater_level": "Piezómetro (pozo de control del nivel del agua subterránea) cuyo nivel del último mes "
+                             "completo está bajo o muy bajo frente al mismo mes de todos los demás años de su serie, con "
+                             "los umbrales del boletín del BRGM. Cada pozo se compara consigo mismo: dice cómo está su "
+                             "acuífero respecto a lo habitual, no que el espacio se esté secando. El punto es el pozo y "
+                             "sale en la ficha de su municipio; los metros sirven para entender ese pozo, no para "
+                             "compararlo con otros.",
         "night_light": "Brillo medio de noche de los píxeles del espacio en las imágenes anuales del satélite VIIRS "
                        "(NASA Black Marble), de media en los dos últimos años frente a los tres primeros, y comparado "
                        "con lo que cambiaron los espacios que eran igual de oscuros: el producto sube y baja de un año "
@@ -290,7 +301,8 @@ _ES = {
     },
     "level": {"very high": "muy alta", "high": "alta", "moderate": "moderada", "low": "baja"},
     # Statuses the siblings send as canonical values, which are Spanish words.
-    "status": {"provisional": "provisional", "definitivo": "definitivo", "confirmada": "confirmada"},
+    "status": {"provisional": "provisional", "definitivo": "definitivo", "confirmada": "confirmada",
+               "muy bajo": "muy bajo", "bajo": "bajo"},
     # Units a sibling sends in Spanish for every country (the others come in the signal's own language).
     "units": {"elementos": "elementos"},
     "layers": {
@@ -298,6 +310,7 @@ _ES = {
         "humedales": "Agua de los humedales", "rios": "Caudal de los ríos",
         "tendidos": "Aerogeneradores y tendidos de riesgo alto", "luz": "Luz de noche en aumento",
         "migracion": "Migración esta noche", "depuracion": "Depuración y baño",
+        "acuiferos": "Agua subterránea baja",
     },
     "indicators": {
         "precise": "Proyectos dentro, por parcelas", "open": "Proyectos con plazo abierto",
@@ -335,6 +348,7 @@ _FR = {
     "days_left": "il reste {n} jours", "days_left_1": "il reste {n} jour",
     "by_muni": "par commune",
     "more_than_expected": "de plus que prévu",
+    "below_usual": "sous le niveau habituel", "above_usual": "au-dessus du niveau habituel",
     "ha_inside": "{ha} ha dedans",
     "n_open": "{n} consultations ouvertes", "n_open_1": "{n} consultation ouverte",
     "none_open": "aucune consultation ouverte",
@@ -470,9 +484,12 @@ _FR = {
         "high_risk": "Éléments à risque élevé", "light_now": "Luminosité récente",
         "light_before": "Luminosité en 2012-2014", "light_expected": "Attendue, comme les sites aussi sombres",
         "pixels": "Pixels VIIRS", "migration": "Migration prévue", "precision": "Précision",
+        "gw_class": "Niveau", "gw_month": "Mois évalué", "gw_vs_usual": "Par rapport à l'habituel du mois",
+        "gw_level": "Niveau moyen du mois", "gw_years": "Années de référence", "water_body": "Masse d'eau",
     },
     "normal_value": "{ha} ha (médiane de {from}-{to})",
     "x_of_y": "{x} sur {y}",
+    "gw_prob": "probabilité {p} sur {n} ans", "gw_record": "le plus bas de la série",
     "read_notice": "Lire l'avis",
     "see_nasa": "Voir le produit de la NASA",
     "see_in": "Voir sur {name}",
@@ -499,6 +516,7 @@ _FR = {
         "night_light": {"tag": "Lumière", "theme": "Lumière artificielle la nuit"},
         "wastewater": {"tag": "Épuration", "theme": "Épuration et baignade"},
         "bathing_water": {"tag": "Baignade", "theme": "Épuration et baignade"},
+        "groundwater_level": {"tag": "Nappe", "theme": "Eaux souterraines"},
     },
     "precision": {
         "parcelas": "croisement par parcelles", "municipio": "croisement par commune",
@@ -528,6 +546,12 @@ _FR = {
         "bathing_water": "Zone de baignade classée insuffisante la dernière saison pour la qualité microbiologique de "
                          "l'eau, d'après l'Agence européenne pour l'environnement et le ministère de la Santé. Les "
                          "saisons comptent les années avec ce même classement.",
+        "groundwater_level": "Piézomètre (puits de contrôle du niveau de la nappe) dont le niveau du dernier mois "
+                             "complet est bas ou très bas par rapport au même mois de toutes les autres années de sa "
+                             "série, avec les seuils du bulletin du BRGM. Chaque puits est comparé à lui-même : il dit "
+                             "où en est sa nappe par rapport à l'habituel, pas que le site s'assèche. Le point est le "
+                             "puits, rattaché à sa commune ; les mètres servent à comprendre ce puits, pas à le "
+                             "comparer aux autres.",
         "night_light": "Luminosité nocturne moyenne des pixels du site dans les images annuelles du satellite VIIRS "
                        "(NASA Black Marble), en moyenne sur les deux dernières années face aux trois premières, et "
                        "comparée à l'évolution des sites qui étaient aussi sombres : le produit monte et descend d'une "
@@ -540,14 +564,15 @@ _FR = {
                      "donc être en dehors.",
     },
     "level": {"very high": "très forte", "high": "forte", "moderate": "modérée", "low": "faible"},
-    "status": {"provisional": "provisoire", "definitivo": "définitif", "confirmada": "confirmée"},
+    "status": {"provisional": "provisoire", "definitivo": "définitif", "confirmada": "confirmée",
+               "muy bajo": "très bas", "bajo": "bas"},
     "units": {"elementos": "éléments"},
     "layers": {
         "proyectos": "Projets en évaluation", "fuego": "Incendies sur 12 mois",
         "suelo": "Changements d'occupation du sol", "humedales": "Eau des zones humides",
         "rios": "Débit des rivières", "tendidos": "Éoliennes et lignes à risque élevé",
         "luz": "Lumière nocturne en hausse", "migracion": "Migration cette nuit",
-        "depuracion": "Épuration et baignade",
+        "depuracion": "Épuration et baignade", "acuiferos": "Nappes basses",
     },
     # Only what some source watches site by site in France.
     "indicators": {
@@ -587,6 +612,7 @@ _PY_ES = {
         "zona-inundable": ("Zona inundable", "edificios construidos en zona inundable"),
         "black-marble": ("NASA Black Marble", "luz artificial de noche"),
         "depuracion-y-bano": ("Depuración y baño", "depuradoras que no cumplen y zonas de baño insuficientes"),
+        "acuiferos-francia": ("Acuíferos de Francia", "nivel de las aguas subterráneas"),
     },
     "light_title": "La luz artificial de noche ha subido un {pct} desde {b0}-{b1}; en los espacios igual de oscuros, "
                    "{them}",
@@ -599,11 +625,12 @@ _PY_ES = {
 }
 _PY_FR = {
     "feed_title": "{name} · État des IBA",
-    "feed_site": "Lumière artificielle la nuit, épuration et baignade et, quand une source les couvre, projets, feu, "
-                 "changements d'occupation du sol, eau, éoliennes et lignes électriques sur {name} ({code}).",
-    "feed_region": "Lumière artificielle la nuit, épuration et baignade et, quand une source les couvre, projets, feu, "
-                   "changements d'occupation du sol, eau, éoliennes et lignes électriques dans les sites et les "
-                   "communes de {name}.",
+    "feed_site": "Lumière artificielle la nuit, épuration et baignade, nappes basses et, quand une source les couvre, "
+                 "projets, feu, changements d'occupation du sol, eau, éoliennes et lignes électriques sur {name} "
+                 "({code}).",
+    "feed_region": "Lumière artificielle la nuit, épuration et baignade, nappes basses et, quand une source les "
+                   "couvre, projets, feu, changements d'occupation du sol, eau, éoliennes et lignes électriques dans "
+                   "les sites et les communes de {name}.",
     "feed_by_muni": "Par commune",
     "feed_deadline": " Observations jusqu'au {date}.",
     "no_data": "pas de données aujourd'hui",
@@ -622,6 +649,7 @@ _PY_FR = {
         "black-marble": ("NASA Black Marble", "la lumière artificielle la nuit"),
         "depuracion-y-bano": ("Depuración y baño", "les stations d'épuration non conformes et les baignades "
                                                    "insuffisantes"),
+        "acuiferos-francia": ("Acuíferos de Francia", "le niveau des nappes"),
     },
     "light_title": "La lumière artificielle la nuit a augmenté de {pct} depuis {b0}-{b1} ; dans les sites aussi "
                    "sombres, elle {them}",

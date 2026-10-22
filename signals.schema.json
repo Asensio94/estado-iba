@@ -222,7 +222,8 @@
             "flood_building",
             "night_light",
             "wastewater",
-            "bathing_water"
+            "bathing_water",
+            "groundwater_level"
           ]
         },
         "date": {

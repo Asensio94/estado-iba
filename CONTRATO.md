@@ -1,6 +1,6 @@
 # Contrato de señales
 
-Estado de las IBA reúne lo que publican los proyectos hermanos. Para no depender del formato interno de cada uno, todo se traduce a **señales**: cada señal es un hecho con fecha, lugar y enlace a su registro original. Una señal puede ser un anuncio del BOE, un incendio, una alerta de cambio de uso, una medida de agua o caudal, un tendido peligroso, una depuradora que no cumple, una zona de baño insuficiente o el recuento de edificios nuevos en zona inundable de un municipio.
+Estado de las IBA reúne lo que publican los proyectos hermanos. Para no depender del formato interno de cada uno, todo se traduce a **señales**: cada señal es un hecho con fecha, lugar y enlace a su registro original. Una señal puede ser un anuncio del BOE, un incendio, una alerta de cambio de uso, una medida de agua o caudal, un nivel bajo de las aguas subterráneas, un tendido peligroso, una depuradora que no cumple, una zona de baño insuficiente o el recuento de edificios nuevos en zona inundable de un municipio.
 
 Cada proyecto publica sus señales en `signals.json`, en la raíz de su web: `https://asensio94.github.io/<proyecto>/signals.json`. Estado de las IBA lo busca en cada actualización. Mientras un proyecto no lo publique, o si el fichero no se puede leer, el hub traduce sus ficheros internos como hasta ahora (`estado/adapters.py`).
 
@@ -40,7 +40,7 @@ Hay dos versiones. La **1** es solo España y sigue valiendo tal cual. La **2** 
 | Campo | Obligatorio | Qué es |
 |---|---|---|
 | `id` | sí | Identificador estable dentro del proyecto. El hub lo combina con `source`. |
-| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`, `flood_building`, `night_light`, `wastewater`, `bathing_water`. |
+| `kind` | sí | Tipo de hecho: `notice`, `resolution`, `fire`, `land_change`, `wetland_water`, `river_flow`, `power_line`, `migration`, `flood_building`, `night_light`, `wastewater`, `bathing_water`, `groundwater_level`. |
 | `date` | sí | Fecha del hecho (`AAAA-MM-DD`): publicación, detección o medida. |
 | `title` | sí | Una línea legible, en español. |
 | `url` | sí | Enlace directo al registro: la web del proyecto con su ancla o la fuente oficial. |
@@ -63,6 +63,7 @@ Hay dos versiones. La **1** es solo España y sigue valiendo tal cual. La **2** 
 - El `id` es estable entre ejecuciones, para que los enlaces y los RSS no cambien.
 - Una señal sin un campo obligatorio, o de un tipo que no está en la lista, se descarta.
 - Las depuradoras (`wastewater`) y las zonas de baño (`bathing_water`) tampoco tienen ventana: son el estado del último informe, que se publica cada dos años o cada temporada.
+- El nivel de las aguas subterráneas (`groundwater_level`) tampoco tiene ventana: es el estado del último mes completo, que el proyecto vuelve a publicar cada día.
 - Los recuentos (`flood_building`) no tienen ventana: son un inventario, y su `date` es la fecha del dato de origen. Un recuento a cero no es una señal y se descarta.
 
 El contrato también está escrito como JSON Schema en [`signals.schema.json`](signals.schema.json), para validarlo con cualquier herramienta. Si la tabla y el esquema no dicen lo mismo, falla un test de estado-iba.
@@ -96,6 +97,7 @@ Cada día, `salud.yml` valida el `signals.json` publicado de cada hermano y lo c
 | `night_light` | estado-iba (NASA Black Marble) | Luz artificial de noche de un espacio que ha subido más que la de los espacios que eran igual de oscuros (satélite VIIRS, píxeles de unos 500 m, `precision: "pixeles"`). `value` es esa subida de más, en `%`. No llega por `signals.json`: el hub la calcula con datos abiertos de la NASA. |
 | `wastewater` | depuracion-y-bano | Aglomeración urbana de más de 2.000 habitantes equivalentes cuya depuración no cumple la Directiva 91/271/CEE según el último informe a la AEMA, una por aglomeración (`precision: "punto"`, con su municipio y `details.point` en el núcleo, no en el vertido). `value` son los habitantes equivalentes; `details.carencias`, lo que falla. `date` es la fecha de la situación informada. |
 | `bathing_water` | depuracion-y-bano | Zona de baño clasificada como insuficiente en la última temporada, una por zona (`precision: "punto"`, con municipio y `details.point`). `value` son las temporadas insuficientes; `details.historial`, la clasificación de cada año. |
+| `groundwater_level` | acuiferos-francia | Piezómetro (pozo de control del nivel del agua subterránea) cuyo nivel del último mes completo está «bajo» o «muy bajo» frente al mismo mes de los demás años de su serie (probabilidad 0,20 o menos, con al menos 15 años; los umbrales del boletín del BRGM), uno por piezómetro (`precision: "punto"`, con el código INSEE de su municipio y `details.point`). `status` es la clase, `muy bajo` o `bajo`; `value`, los metros respecto a la mediana de ese mes en los demás años (negativo: por debajo), en `m`. `details` lleva el mes evaluado (`month`), la probabilidad (`p`), los años de referencia (`years`), el nivel medio en m NGF (`level`), si es el mínimo de la serie (`record`) y la masa de agua. `date` es la de la última medida del piezómetro. Solo Francia (versión 2). |
 
 ## Versión 2: varios países
 

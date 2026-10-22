@@ -59,3 +59,13 @@ def test_a_point_signal_needs_somewhere_to_go():
     assert r.ok and len(r.warnings) == 1
     r = contract.validate(_doc(_sig("P", precision="punto", sites=[], municipalities=[], details={"point": [-3.7, 40.4]})))
     assert r.ok and not r.warnings
+
+
+def test_every_kind_has_its_words_and_a_map_layer():
+    from estado import i18n
+
+    app = (ROOT / "estado" / "static" / "app.js").read_text(encoding="utf-8")
+    drawn = {k for ks in re.findall(r"kinds: \[([^\]]*)\]", app) for k in re.findall(r'"([a-z_]+)"', ks)}
+    for lang in ("es", "fr"):
+        assert A.KINDS <= i18n.UI[lang]["kinds"].keys()
+    assert A.KINDS - {"resolution", "flood_building"} <= drawn  # those two are never drawn

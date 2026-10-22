@@ -34,6 +34,7 @@ const LAYERS = [
   {id: "luz", color: "#e3b505", shape: "sun", source: "black-marble", kinds: ["night_light"]},
   {id: "migracion", color: OUTLINE, stroke: "#fff", shape: "star", source: "sub-nocte", kinds: ["migration"]},
   {id: "depuracion", color: "#7a5230", shape: "drop", source: "depuracion-y-bano", kinds: ["wastewater", "bathing_water"]},
+  {id: "acuiferos", color: "#0e7c86", shape: "down", source: "acuiferos-francia", kinds: ["groundwater_level"]},
 ].map(ly => ({...ly, name: T.layers[ly.id]}));
 // The light layer is the one pale fill: it sits outside the lightness band of the others, so it
 // leans on the dark outline every mark has, and on its own shape, a sun.
@@ -55,6 +56,7 @@ const SHAPE = {
   star: `<polygon points="${STAR}"/>`,
   sun: `<polygon points="${SUN}"/>`,
   drop: `<path d="M10 1.5C7.5 5 3.5 9.3 3.5 12.5a6.5 6.5 0 0 0 13 0C16.5 9.3 12.5 5 10 1.5Z"/>`,
+  down: `<path d="M1.5 3h17L10 18Z"/>`,
 };
 
 let D, M, SHAPES, REGIONS_GEO, capa, MAPS = [];
@@ -84,6 +86,8 @@ function precTag(s) {
 function value(s) {
   if (!s.value || s.value.amount == null) return "";
   const a = s.value.amount;
+  // A piezometer's metres are against its own usual level for the month: say which way.
+  if (s.kind === "groundwater_level") return ` · ${num(Math.abs(a), 2)} m ${t(a < 0 ? "below_usual" : "above_usual")}`;
   return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(T.units[s.value.unit] || s.value.unit)}${s.kind === "night_light" ? " " + t("more_than_expected") : ""}`;
 }
 function siteHa(s, code) {
@@ -584,7 +588,7 @@ function signalItem(s, code) {
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
   if (s.kind === "night_light") extra.push(t("light_line", {now: num(d.radiance, 2), before: num(d.baseline, 2), expected: num(d.expected, 2)}));
-  else if (PRECISION[s.precision] && !["wetland_water", "flood_building", "wastewater", "bathing_water"].includes(s.kind)) extra.push(PRECISION[s.precision]);
+  else if (PRECISION[s.precision] && !["wetland_water", "flood_building", "wastewater", "bathing_water", "groundwater_level"].includes(s.kind)) extra.push(PRECISION[s.precision]);
   const fotos = d.before && d.after ? `<div class="fotos">
       <figure><img loading="lazy" src="${esc(d.before)}" alt="${esc(t("Before"))}"><figcaption>${t("before")} · ${fecha(d.before_date)}</figcaption></figure>
       <figure><img loading="lazy" src="${esc(d.after)}" alt="${esc(t("After"))}"><figcaption>${t("after")} · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
@@ -841,6 +845,13 @@ function datos(s) {
     add(F.light_before, `${num(d.baseline, 2)} nW/cm²/sr`);
     add(F.light_expected, `${num(d.expected, 2)} nW/cm²/sr`);
     add(F.pixels, num(d.pixels));
+  } else if (s.kind === "groundwater_level") {
+    add(F.gw_class, STATUS(s) + (d.record ? ` (${t("gw_record")})` : ""));
+    add(F.gw_month, d.month ? mesDe(d.month) : null);
+    add(F.gw_vs_usual, s.value ? value(s).slice(3) : null);
+    add(F.gw_level, d.level != null ? `${num(d.level, 2)} m NGF` : null);
+    add(F.gw_years, d.p != null ? t("gw_prob", {p: num(d.p, 2), n: num(d.years)}) : null);
+    add(F.water_body, esc(d.water_body));
   } else if (s.kind === "migration") {
     add(F.migration, LEVEL[s.status] || STATUS(s));
   } else {

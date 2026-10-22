@@ -5,7 +5,7 @@ import re
 from shapely import box
 from shapely.geometry import mapping
 
-from estado import adapters as A, aves as V, config, i18n, places as P, web
+from estado import adapters as A, aves as V, config, contract, i18n, places as P, web
 from tests.test_aves import row
 
 NN = " "
@@ -181,3 +181,18 @@ def test_the_light_figure_counts_the_sites_that_rise_once_there_is_light():
     assert (got["light"], got["light_sites"]) == ("2", "3")
     none = web._figures({}, [], {"black-marble": {"coverage": {"label": "x", "sites": []}}}, "fr")
     assert (none["light"], none["light_sites"]) == ("—", "—")
+
+
+def test_a_low_piezometer_stays_in_its_commune_and_follows_the_contract():
+    sig = {"id": "BSS000ACKJ", "country": "FR", "kind": "groundwater_level", "date": "2026-10-20",
+           "title": "Nappe très basse à Saint-Georges-sur-l'Aa", "url": "https://x/#BSS000ACKJ",
+           "municipalities": ["59532"], "precision": "punto", "status": "muy bajo",
+           "value": {"amount": -0.42, "unit": "m"},
+           "details": {"point": [2.1696, 50.97109], "month": "2026-09", "p": 0.05, "years": 16}}
+    doc = {**_v2([sig], coverage=("FR",)), "source": "acuiferos-francia"}
+    assert contract.validate(doc, "acuiferos-francia").ok
+    assert A.published(doc, "acuiferos-francia", resolve, nowhere, "ES") is None
+    _, out = A.published(doc, "acuiferos-francia", resolve, lambda lon, lat: 1 / 0, "FR")
+    assert [(s["kind"], s["sites"], s["municipalities"], s["status"]) for s in out] == [
+        ("groundwater_level", [], ["59532"], "muy bajo")]
+    assert {i18n.UI[lang]["status"]["muy bajo"] for lang in ("es", "fr")} == {"muy bajo", "très bas"}
