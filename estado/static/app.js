@@ -414,7 +414,11 @@ async function mapaTodo(host, scope, label) {
     if (on) groups[ly.id].addTo(map);
     pts.push(...marks.map(x => x.latlng));
     const open = ly.id === "proyectos" ? list.filter(isOpen).length : 0;
-    const notes = [open ? `${t("n_with_deadline", {n: open})}: ${t("double_border")}` : "", c.on && !list.length ? t("watched_nothing") : "", c.note || ""].filter(Boolean);
+    // Signals tied to a municipality and to no site (wastewater, groundwater) only show once a
+    // municipality or a site is open: say how many there are instead of «nothing new».
+    const byMuni = c.on && !list.length ? scope.signals.filter(s => ly.kinds.includes(s.kind)).length : 0;
+    const notes = [open ? `${t("n_with_deadline", {n: open})}: ${t("double_border")}` : "",
+      c.on && !list.length ? (byMuni ? t("by_muni_only", {n: num(byMuni)}) : t("watched_nothing")) : "", c.note || ""].filter(Boolean);
     rows.push(`<li class="capa${c.on ? "" : " no-cubre"}"><label>
       <input type="checkbox" data-capa="${ly.id}" ${on ? "checked" : ""} ${marks.length ? "" : "disabled"}>
       ${icono(ly.shape, ly.color, 18, {stroke: ly.stroke})}<span class="nombre">${esc(ly.name)}</span>
