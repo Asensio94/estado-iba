@@ -258,18 +258,20 @@ __FAVICON__
 <footer class="site-footer">
   <p class="principle">Datos públicos, reglas a la vista y cada cifra enlazada a su fuente. Indicios, no veredictos.</p>
   <p>Red Natura 2000 y aves de cada espacio: Agencia Europea de Medio Ambiente (CC BY 4.0) · Nombres de aves: MITECO · Municipios: Instituto Geográfico Nacional (es-atlas) · Anuncios y resoluciones: Boletín Oficial del Estado · Sociedades: BORME y cuentas anuales · Focos y superficie quemada: NASA FIRMS y Copernicus Sentinel-2 · Cambio de uso y agua: Copernicus Sentinel-2 · Caudales: SAIH del Júcar y SIRA del Guadiana · Aerogeneradores y tendidos: OpenStreetMap · Luz de noche: NASA Black Marble (VIIRS) · Migración: radares meteorológicos europeos · Zonas inundables: SNCZI (MITECO) y Catastro · Depuración: informe de España a la AEMA (Directiva 91/271/CEE) · Zonas de baño: Náyade · Mapa: © colaboradores de OpenStreetMap · Código con licencia MIT.</p>
+  <p class="hub"><a href="https://asensio94.github.io/terra-aperta/">← Terra Aperta: todos los proyectos</a></p>
   <nav aria-label="Proyectos hermanos"><ul class="siblings">
-    <li><a href="https://asensio94.github.io/observatorio-alegaciones/">Observatorio de alegaciones</a></li>
+    <li><a href="https://asensio94.github.io/sub-nocte/">Sub Nocte</a></li>
     <li><a href="https://asensio94.github.io/vigia-incendios/">Vigía de incendios</a></li>
     <li><a href="https://asensio94.github.io/centinela-natura/">Centinela Natura</a></li>
-    <li><a href="https://asensio94.github.io/vigilancia-humedales/">Vigilancia de humedales</a></li>
-    <li><a href="https://asensio94.github.io/sub-nocte/">Sub Nocte</a></li>
+    <li aria-current="page">Estado de las IBA</li>
     <li><a href="https://asensio94.github.io/riesgo-tendidos-aves/">Riesgo de tendidos para aves</a></li>
+    <li><a href="https://asensio94.github.io/observatorio-alegaciones/">Observatorio de alegaciones</a></li>
     <li><a href="https://asensio94.github.io/grafo-promotores/">Grafo de promotores</a></li>
-    <li><a href="https://asensio94.github.io/cartera-cotizadas/">Cartera de las cotizadas</a></li>
-    <li><a href="https://asensio94.github.io/cuaderno-campo/">Cuaderno de campo</a></li>
+    <li><a href="https://asensio94.github.io/vigilancia-humedales/">Vigilancia de humedales</a></li>
     <li><a href="https://asensio94.github.io/caudal-ecologico/">Caudal ecológico</a></li>
-    <li aria-current="page"><a href="https://asensio94.github.io/estado-iba/">Estado de las IBA</a></li>
+    <li><a href="https://asensio94.github.io/acuiferos-francia/">Acuíferos de Francia</a></li>
+    <li><a href="https://asensio94.github.io/depuracion-y-bano/">Depuración y baño</a></li>
+    <li><a href="https://asensio94.github.io/zona-inundable/">Construir en zona inundable</a></li>
   </ul></nav>
 </footer>
 

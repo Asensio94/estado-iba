@@ -102,19 +102,20 @@ __FAVICON__
 <footer class="site-footer">
   <p class="principle">Données publiques, règles visibles et chaque chiffre relié à sa source. Des indices, pas des verdicts.</p>
   <p>Réseau Natura 2000 et oiseaux de chaque site : Agence européenne pour l'environnement (CC BY 4.0) · Noms des oiseaux : Wikidata (CC0), d'après la liste de la Commission de l'avifaune française · Communes, départements et régions : IGN Admin Express (Licence Ouverte 2.0) · Lumière la nuit : NASA Black Marble (VIIRS) · Changements d'occupation du sol : Copernicus Sentinel-2 · Épuration : portail de l'assainissement collectif, ministère de la Transition écologique (Licence Ouverte) · Baignades : Agence européenne pour l'environnement et ministère de la Santé (Licence Ouverte) · Carte : © contributeurs d'OpenStreetMap · Code sous licence MIT.</p>
+  <p class="hub"><a href="https://asensio94.github.io/terra-aperta/fr/">← Terra Aperta : tous les projets</a></p>
   <nav aria-label="Projets frères"><ul class="siblings">
-    <li><a href="https://asensio94.github.io/observatorio-alegaciones/" lang="es">Observatorio de alegaciones</a></li>
-    <li><a href="https://asensio94.github.io/vigia-incendios/" lang="es">Vigía de incendios</a></li>
-    <li><a href="https://asensio94.github.io/centinela-natura/fr/">Centinela Natura</a></li>
-    <li><a href="https://asensio94.github.io/vigilancia-humedales/" lang="es">Vigilancia de humedales</a></li>
     <li><a href="https://asensio94.github.io/sub-nocte/">Sub Nocte</a></li>
-    <li><a href="https://asensio94.github.io/riesgo-tendidos-aves/" lang="es">Riesgo de tendidos para aves</a></li>
-    <li><a href="https://asensio94.github.io/grafo-promotores/" lang="es">Grafo de promotores</a></li>
-    <li><a href="https://asensio94.github.io/cartera-cotizadas/" lang="es">Cartera de las cotizadas</a></li>
-    <li><a href="https://asensio94.github.io/cuaderno-campo/" lang="es">Cuaderno de campo</a></li>
-    <li><a href="https://asensio94.github.io/caudal-ecologico/" lang="es">Caudal ecológico</a></li>
-    <li><a href="https://asensio94.github.io/depuracion-y-bano/fr/">Depuración y baño</a></li>
-    <li aria-current="page"><a href="https://asensio94.github.io/estado-iba/fr/">État des IBA</a></li>
+    <li><a href="https://asensio94.github.io/vigia-incendios/fr/">Vigie des incendies</a></li>
+    <li><a href="https://asensio94.github.io/centinela-natura/fr/">Centinela Natura</a></li>
+    <li aria-current="page">État des IBA</li>
+    <li><a href="https://asensio94.github.io/riesgo-tendidos-aves/regions.fr.html">Risque des lignes pour les oiseaux</a></li>
+    <li><a href="https://asensio94.github.io/observatorio-alegaciones/">Observatoire des consultations</a></li>
+    <li><a href="https://asensio94.github.io/grafo-promotores/">Graphe des porteurs de projet</a></li>
+    <li><a href="https://asensio94.github.io/vigilancia-humedales/france.html">Veille des zones humides</a></li>
+    <li><a href="https://asensio94.github.io/caudal-ecologico/">Débit écologique</a></li>
+    <li><a href="https://asensio94.github.io/acuiferos-francia/">Nappes de France</a></li>
+    <li><a href="https://asensio94.github.io/depuracion-y-bano/fr/">Épuration et baignade</a></li>
+    <li><a href="https://asensio94.github.io/zona-inundable/">Construire en zone inondable</a></li>
   </ul></nav>
 </footer>
 
