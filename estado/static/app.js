@@ -1,63 +1,40 @@
 "use strict";
 // Estado de las IBA: one page, six views (home, community, site, municipality, deadlines, signal) routed by the URL hash.
+// The same script serves every country: estado/i18n.py writes the page's strings and settings into it
+// as window.I18N and window.PAGE, and the data (hub.json and the rest) is the same whatever the language.
 
+const T = window.I18N, PAGE = window.PAGE;
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-const num = (x, d = 0) => x == null ? "—" : Number(x).toLocaleString("es-ES", {minimumFractionDigits: d, maximumFractionDigits: d});
-const fecha = s => s ? new Date(s.slice(0, 10) + "T12:00:00").toLocaleDateString("es-ES", {day: "numeric", month: "short", year: "numeric"}) : "";
-const mesDe = s => new Date(s.slice(0, 7) + "-15T12:00:00").toLocaleDateString("es-ES", {month: "long", year: "numeric"});
+const num = (x, d = 0) => x == null ? "—" : Number(x).toLocaleString(PAGE.locale, {minimumFractionDigits: d, maximumFractionDigits: d});
+const fecha = s => s ? new Date(s.slice(0, 10) + "T12:00:00").toLocaleDateString(PAGE.locale, {day: "numeric", month: "short", year: "numeric"}) : "";
+const mesDe = s => new Date(s.slice(0, 7) + "-15T12:00:00").toLocaleDateString(PAGE.locale, {month: "long", year: "numeric"});
 const norm = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const corta = (t, n) => t.length > n ? t.slice(0, n - 1) + "…" : t;
+const byName = (a, b) => a.localeCompare(b, PAGE.lang);
+// A string of the page's language, with {placeholders} filled in; tn picks the singular form (key_1) for one.
+const t = (k, v = {}) => String(T[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => v[x] ?? "");
+const tn = (k, n, v = {}) => t(n === 1 && T[k + "_1"] != null ? k + "_1" : k, {n: num(n), ...v});
+const pct_ = (n, d = 0) => t("pct", {n: num(n, d)});
 
-const KIND = {
-  notice: {tag: "Proyecto", theme: "Proyectos en evaluación"},
-  resolution: {tag: "Resolución", theme: "Proyectos en evaluación"},
-  fire: {tag: "Fuego", theme: "Fuego"},
-  land_change: {tag: "Suelo", theme: "Cambios de uso del suelo"},
-  wetland_water: {tag: "Agua", theme: "Agua de los humedales"},
-  river_flow: {tag: "Río", theme: "Caudal de los ríos"},
-  power_line: {tag: "Infraestructura", theme: "Aerogeneradores y tendidos eléctricos"},
-  migration: {tag: "Migración", theme: "Migración nocturna"},
-  flood_building: {tag: "Inundable", theme: "Edificios en zona inundable"},
-  night_light: {tag: "Luz", theme: "Luz artificial de noche"},
-  wastewater: {tag: "Depuración", theme: "Depuración y baño"},
-  bathing_water: {tag: "Baño", theme: "Depuración y baño"},
-};
-const PRECISION = {
-  parcelas: "cruce por parcelas", municipio: "cruce por municipio", perimetro: "perímetro Sentinel-2",
-  focos: "extensión de los focos", pixeles: "píxeles Sentinel-2", lamina: "lámina de agua", punto: "punto",
-};
-const MEANS = {
-  notice: "Un anuncio de información pública abre un plazo para que cualquier persona o entidad presente alegaciones. Que un proyecto esté en evaluación no significa que vaya a hacerse.",
-  resolution: "La resolución cierra el procedimiento: autoriza, deniega o archiva el proyecto. El Observatorio la empareja con el anuncio que la abrió.",
-  fire: "Incendio visto por satélite. Si ya hay perímetro de Sentinel-2, las hectáreas son las quemadas dentro del espacio; si no, la extensión de los píxeles con focos, que exagera los incendios pequeños.",
-  land_change: "Centinela compara la vegetación con imágenes de Sentinel-2. Una alerta no es una infracción: puede ser una obra autorizada, una corta o un cambio de cultivo. Se indica si se encontró expediente.",
-  wetland_water: "Agua libre medida con Sentinel-2, comparada con la mediana del mismo mes en años anteriores.",
-  flood_building: "Edificios del Catastro construidos después de 2016 dentro de las zonas inundables cartografiadas por el SNCZI (flujo preferente, 100 y 500 años). Es un recuento del municipio entero, no un hecho de un día: la fecha es la de los datos del Catastro.",
-  night_light: "Brillo medio de noche de los píxeles del espacio en las imágenes anuales del satélite VIIRS (NASA Black Marble), de media en los dos últimos años frente a los tres primeros, y comparado con lo que cambiaron los espacios que eran igual de oscuros: el producto sube y baja de un año a otro en todo el país a la vez. El sensor apenas ve la luz azul de los LED blancos: una subida es real y, si acaso, se queda corta; una bajada puede ser solo el cambio de farolas, por eso no se avisa de las bajadas.",
-  wastewater: "Aglomeración urbana cuya depuración no cumple la directiva europea de aguas residuales según el último informe de España a la Agencia Europea de Medio Ambiente. Es un indicio: el punto es el núcleo urbano, no el vertido, y la fecha es la de la situación informada.",
-  bathing_water: "Zona de baño clasificada como insuficiente en la última temporada por la calidad microbiológica del agua. Las temporadas cuentan los años con esa misma clasificación.",
-};
-const PREC_NOTE = {
-  municipio: "Este anuncio no trae parcelas: se ha cruzado el término municipal entero con el espacio, así que el proyecto puede quedar fuera.",
-};
-const LEVEL = {"very high": "muy alta", high: "alta", moderate: "moderada", low: "baja"};
+const KIND = T.kinds, PRECISION = T.precision, MEANS = T.means, PREC_NOTE = T.prec_note, LEVEL = T.level;
+const STATUS = s => esc(T.status[s.status] || s.status);
 
 /* Map layers: one per sibling. Colours were checked for colour-blind separation against the OSM
    tiles; each layer also has its own shape, so colour is never the only cue. The tiles stay light
    in dark mode, so the marks keep a fixed dark outline instead of following the theme. */
 const OUTLINE = "#221d1a", MAP_ACCENT = "#a3336e";
 const LAYERS = [
-  {id: "proyectos", name: "Proyectos en evaluación", color: "#a3336e", shape: "square", source: "observatorio-alegaciones", kinds: ["notice"]},
-  {id: "fuego", name: "Incendios en 12 meses", color: "#eb6834", shape: "triangle", source: "vigia-incendios", kinds: ["fire"]},
-  {id: "suelo", name: "Cambios de uso del suelo", color: "#1baf7a", shape: "diamond", source: "centinela-natura", kinds: ["land_change"]},
-  {id: "humedales", name: "Agua de los humedales", color: "#2a78d6", shape: "circle", source: "vigilancia-humedales", kinds: ["wetland_water"]},
-  {id: "rios", name: "Caudal de los ríos", color: "#2a78d6", shape: "ring", source: "caudal-ecologico", kinds: ["river_flow"]},
-  {id: "tendidos", name: "Aerogeneradores y tendidos de riesgo alto", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
-  {id: "luz", name: "Luz de noche en aumento", color: "#e3b505", shape: "sun", source: "black-marble", kinds: ["night_light"]},
-  {id: "migracion", name: "Migración esta noche", color: OUTLINE, stroke: "#fff", shape: "star", source: "sub-nocte", kinds: ["migration"]},
-  {id: "depuracion", name: "Depuración y baño", color: "#7a5230", shape: "drop", source: "depuracion-y-bano", kinds: ["wastewater", "bathing_water"]},
-];
+  {id: "proyectos", color: "#a3336e", shape: "square", source: "observatorio-alegaciones", kinds: ["notice"]},
+  {id: "fuego", color: "#eb6834", shape: "triangle", source: "vigia-incendios", kinds: ["fire"]},
+  {id: "suelo", color: "#1baf7a", shape: "diamond", source: "centinela-natura", kinds: ["land_change"]},
+  {id: "humedales", color: "#2a78d6", shape: "circle", source: "vigilancia-humedales", kinds: ["wetland_water"]},
+  {id: "rios", color: "#2a78d6", shape: "ring", source: "caudal-ecologico", kinds: ["river_flow"]},
+  {id: "tendidos", color: "#4a3aa7", shape: "plus", source: "riesgo-tendidos-aves", kinds: ["power_line"]},
+  {id: "luz", color: "#e3b505", shape: "sun", source: "black-marble", kinds: ["night_light"]},
+  {id: "migracion", color: OUTLINE, stroke: "#fff", shape: "star", source: "sub-nocte", kinds: ["migration"]},
+  {id: "depuracion", color: "#7a5230", shape: "drop", source: "depuracion-y-bano", kinds: ["wastewater", "bathing_water"]},
+].map(ly => ({...ly, name: T.layers[ly.id]}));
 // The light layer is the one pale fill: it sits outside the lightness band of the others, so it
 // leans on the dark outline every mark has, and on its own shape, a sun.
 const SUN = Array.from({length: 16}, (_, i) => {
@@ -88,7 +65,7 @@ function daysLeft(deadline) {
 }
 function dias(deadline) {
   const n = daysLeft(deadline);
-  return n === 0 ? "último día hoy" : n === 1 ? "queda 1 día" : `quedan ${n} días`;
+  return n === 0 ? t("last_day") : tn("days_left", n);
 }
 const isOpen = s => s.deadline && s.deadline >= D.today && s.kind === "notice";
 const siteName = c => D.sitesByCode[c]?.name || c;
@@ -102,64 +79,59 @@ function tag(s) {
   return `<span class="tag">${esc(k.tag)}</span>`;
 }
 function precTag(s) {
-  return s.precision === "municipio" ? `<span class="tag prec-municipio" title="${esc(PREC_NOTE.municipio)}">por municipio</span>` : "";
+  return s.precision === "municipio" ? `<span class="tag prec-municipio" title="${esc(PREC_NOTE.municipio)}">${esc(t("by_muni"))}</span>` : "";
 }
 function value(s) {
   if (!s.value || s.value.amount == null) return "";
   const a = s.value.amount;
-  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(s.value.unit)}${s.kind === "night_light" ? " más de lo esperable" : ""}`;
+  return ` · ${num(a, a < 10 ? 1 : 0)} ${esc(T.units[s.value.unit] || s.value.unit)}${s.kind === "night_light" ? " " + t("more_than_expected") : ""}`;
 }
 function siteHa(s, code) {
   const x = (s.sites || []).find(z => z.code === code);
-  return x && x.ha != null ? ` · ${num(x.ha, x.ha < 10 ? 1 : 0)} ha dentro` : "";
+  return x && x.ha != null ? ` · ${t("ha_inside", {ha: num(x.ha, x.ha < 10 ? 1 : 0)})}` : "";
 }
 
 /* ---------- Home ---------- */
 
 function home() {
-  document.title = "Estado de las IBA";
+  document.title = T.title;
   const open = D.signals.filter(s => isOpen(s) && s.sites.length)
     .sort((a, b) => a.deadline.localeCompare(b.deadline) || (a.precision === "parcelas" ? -1 : 1));
 
   $("#vista").innerHTML = `
   <div class="wrap">
     ${buscador()}
-    <p class="ejemplos">Por ejemplo: <a href="#/e/ES0000014">Monfragüe</a> · <a href="#/e/ES0000024">Doñana</a> · <a href="#/m/30016">Cartagena</a> · <a href="#/ca/06">Cantabria</a></p>
+    <p class="ejemplos">${T.examples}</p>
     <section class="bloque-home">
-      <h2 class="sec">Todo en un mapa</h2>
-      <p class="sec-sub">Cada capa viene de un proyecto hermano (la luz de noche, de la NASA) y se activa o se apaga en la leyenda. Los espacios se colorean según lo que elijas.</p>
-      <div class="controles"><label>Colorear los espacios por <select id="indicador">
-        <option value="precise">Proyectos dentro, por parcelas</option>
-        <option value="open">Proyectos con plazo abierto</option>
-        <option value="notices">Proyectos en su municipio</option>
-        <option value="fire_ha">Hectáreas quemadas en 12 meses</option>
-        <option value="land">Cambios de uso (solo Cantabria)</option>
-        <option value="light">Más luz artificial de noche</option>
+      <h2 class="sec">${t("h_map")}</h2>
+      <p class="sec-sub">${t("map_sub")}</p>
+      <div class="controles"><label>${t("color_by")} <select id="indicador">
+        ${Object.entries(T.indicators).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("\n        ")}
       </select></label></div>
       <div id="mapa-host" class="mapa-host grande"></div>
       <div class="leyenda" id="leyenda"></div>
     </section>
     <section class="bloque-home">
-      <h2 class="sec">Por comunidad</h2>
-      <p class="sec-sub">Sus ZEPA, sus plazos abiertos y lo nuevo de la semana. Canarias, Ceuta y Melilla quedan fuera del mapa de arriba.</p>
+      <h2 class="sec">${t("h_regions")}</h2>
+      <p class="sec-sub">${t("regions_sub", {kind: D.kind})}</p>
       ${comunidades()}
     </section>
     <div class="dos">
       <section class="bloque-home">
-        <h2 class="sec">Plazos abiertos</h2>
-        <p class="sec-sub">Proyectos que tocan una ZEPA y aún admiten alegaciones, del plazo más corto al más largo.</p>
-        <ul class="lista">${open.slice(0, 7).map(s => plazoItem(s)).join("") || `<li class="vacio">Ningún plazo abierto hoy.</li>`}</ul>
-        ${open.length > 7 ? `<a class="ver-mas" href="#/plazos">Ver los ${open.length} plazos abiertos</a>` : ""}
+        <h2 class="sec">${t("h_deadlines")}</h2>
+        <p class="sec-sub">${t("deadlines_sub", {kind: D.kind})}</p>
+        <ul class="lista">${open.slice(0, 7).map(s => plazoItem(s)).join("") || `<li class="vacio">${t("no_deadline")}</li>`}</ul>
+        ${open.length > 7 ? `<a class="ver-mas" href="#/plazos">${t("see_deadlines", {n: open.length})}</a>` : ""}
       </section>
       <section class="bloque-home">
         ${noche()}
-        <h2 class="sec">Esta semana</h2>
-        <p class="sec-sub">Lo nuevo en los últimos 7 días en algún espacio.</p>
+        <h2 class="sec">${t("h_week")}</h2>
+        <p class="sec-sub">${t("week_sub")}</p>
         ${semana(D.signals)}
       </section>
     </div>
     <section class="bloque-home">
-      <h2 class="sec">Clasificación</h2>
+      <h2 class="sec">${t("h_ranking")}</h2>
       <p class="sec-sub" id="ranking-sub"></p>
       <div class="ranking" id="ranking"></div>
     </section>
@@ -167,20 +139,22 @@ function home() {
   wireSearch();
   const sel = $("#indicador");
   sel.addEventListener("input", () => { paintHome(sel.value); ranking(sel.value); });
-  mapaTodo($("#mapa-host"), scopeAll(), "Mapa de todas las ZEPA y de lo que vigila cada proyecto")
+  mapaTodo($("#mapa-host"), scopeAll(), t("map_all_label", {kind: D.kind}))
     .then(r => { if (r) { capa = r.poly; paintHome(sel.value); } });
   ranking(sel.value);
 }
 
 function comunidades() {
   const week = weekAgo();
-  return `<ul class="comunidades">${D.regions.slice().sort((a, b) => a.name.localeCompare(b.name, "es")).map(r => {
+  // «none open» only where someone watches the consultations; elsewhere it would claim what no one checked
+  const consults = !D.sources["observatorio-alegaciones"]?.coverage.absent;
+  return `<ul class="comunidades">${D.regions.slice().sort((a, b) => byName(a.name, b.name)).map(r => {
     const sig = byRegion.get(r.id) || [];
     const open = sig.filter(s => isOpen(s) && s.sites.length).length;
     const nuevo = sig.filter(s => s.date >= week && s.sites.length && !["wetland_water", "migration"].includes(s.kind)).length;
-    return `<li><a href="#/ca/${esc(r.id)}"><b>${esc(r.name)}</b><span class="meta">${r.sites.length} ZEPA</span>
-      <span class="meta">${open ? `<span class="dias">${open} ${open === 1 ? "plazo abierto" : "plazos abiertos"}</span>` : "ningún plazo abierto"}</span>
-      <span class="meta">${nuevo ? `${nuevo} ${nuevo === 1 ? "novedad" : "novedades"} esta semana` : "nada nuevo esta semana"}</span></a></li>`;
+    return `<li><a href="#/ca/${esc(r.id)}"><b>${esc(r.name)}</b><span class="meta">${r.sites.length} ${esc(D.kind)}</span>
+      ${consults ? `<span class="meta">${open ? `<span class="dias">${tn("n_open", open)}</span>` : t("none_open")}</span>` : ""}
+      <span class="meta">${nuevo ? tn("n_new_week", nuevo) : t("nothing_new_week")}</span></a></li>`;
   }).join("")}</ul>`;
 }
 
@@ -193,7 +167,7 @@ function semana(signals) {
   return Object.entries(groups).map(([theme, list]) => `
     <div class="semana-tema"><h3>${esc(theme)} · ${list.length}</h3>
     <ul class="lista">${list.slice(0, 4).map(s => feedItem(s)).join("")}</ul>
-    ${list.length > 4 ? `<p class="meta">y ${list.length - 4} más</p>` : ""}</div>`).join("") || `<p class="vacio">Nada nuevo esta semana.</p>`;
+    ${list.length > 4 ? `<p class="meta">${t("and_more", {n: list.length - 4})}</p>` : ""}</div>`).join("") || `<p class="vacio">${t("nothing_new")}</p>`;
 }
 
 function noche() {
@@ -201,41 +175,42 @@ function noche() {
   if (!m.length) return "";
   const night = m[0].date;
   const order = {"very high": 0, high: 1, moderate: 2};
-  m.sort((a, b) => order[a.status] - order[b.status] || a.details.city.localeCompare(b.details.city, "es"));
-  return `<div class="panel" style="margin-bottom:22px"><h3>Esta noche · migración prevista</h3>
-    <p class="meta" style="margin:0 0 6px">${fecha(night)} · según <a href="${esc(D.sources["sub-nocte"].url)}">Sub Nocte</a></p>
-    <p style="margin:0;font-size:15px">${m.map(s => `${s.municipalities[0] ? `<a href="#/m/${esc(s.municipalities[0])}">${esc(s.details.city)}</a>` : esc(s.details.city)}: <b>${LEVEL[s.status] || esc(s.status)}</b>`).join(" · ")}</p></div>`;
+  m.sort((a, b) => order[a.status] - order[b.status] || byName(a.details.city, b.details.city));
+  return `<div class="panel" style="margin-bottom:22px"><h3>${t("h_tonight")}</h3>
+    <p class="meta" style="margin:0 0 6px">${fecha(night)} · ${t("according_to")} <a href="${esc(D.sources["sub-nocte"].url)}">Sub Nocte</a></p>
+    <p style="margin:0;font-size:15px">${m.map(s => `${s.municipalities[0] ? `<a href="#/m/${esc(s.municipalities[0])}">${esc(s.details.city)}</a>` : esc(s.details.city)}: <b>${LEVEL[s.status] || STATUS(s)}</b>`).join(" · ")}</p></div>`;
 }
 
 function plazoItem(s, code) {
   const sites = s.sites.map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ");
   return `<li class="item ${daysLeft(s.deadline) <= 7 ? "urgente" : ""}">
-    <div class="meta"><span class="dias">${dias(s.deadline)}</span> · hasta el ${fecha(s.deadline)} ${precTag(s)}</div>
+    <div class="meta"><span class="dias">${dias(s.deadline)}</span> · ${t("until", {date: fecha(s.deadline)})} ${precTag(s)}</div>
     <div class="t"><a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${code ? "" : sites + " · "}${fecha(s.date)}${value(s)}${s.details.promoter ? " · " + esc(s.details.promoter) : ""}</div></li>`;
 }
 function feedItem(s) {
-  const sites = s.sites.slice(0, 3).map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ") + (s.sites.length > 3 ? ` y ${s.sites.length - 3} más` : "");
+  const sites = s.sites.slice(0, 3).map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ") + (s.sites.length > 3 ? " " + t("and_more", {n: s.sites.length - 3}) : "");
   return `<li class="item"><div class="t">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${sites} · ${fecha(s.date)}${value(s)} ${precTag(s)}</div></li>`;
 }
 
 const IND = {
-  precise: {label: "proyectos dentro según sus parcelas", f: n => n.precise},
-  open: {label: "proyectos con plazo abierto", f: n => n.open},
-  notices: {label: "proyectos en su municipio", f: n => n.notices},
-  fire_ha: {label: "hectáreas quemadas", f: n => n.fire_ha},
-  land: {label: "alertas de cambio de uso", f: n => n.land || 0},
-  light: {label: "% más luz de noche que otros igual de oscuros", f: n => n.light || 0},
+  precise: {f: n => n.precise},
+  open: {f: n => n.open},
+  notices: {f: n => n.notices},
+  fire_ha: {f: n => n.fire_ha},
+  land: {f: n => n.land || 0},
+  light: {f: n => n.light || 0},
 };
+for (const k in IND) IND[k].label = T.indicator_labels[k];
 
 function ranking(key) {
   const f = IND[key].f;
-  const rows = D.sites.filter(s => f(s.n) > 0).sort((a, b) => f(b.n) - f(a.n) || a.name.localeCompare(b.name, "es"));
-  $("#ranking-sub").textContent = `Las ZEPA con algo en «${IND[key].label}», de más a menos. Cambia el criterio encima del mapa.`;
-  $("#ranking").innerHTML = `<table><thead><tr><th>Espacio</th><th>Comunidad</th><th class="n">${esc(IND[key].label)}</th></tr></thead><tbody>
+  const rows = D.sites.filter(s => f(s.n) > 0).sort((a, b) => f(b.n) - f(a.n) || byName(a.name, b.name));
+  $("#ranking-sub").textContent = t("ranking_sub", {kind: D.kind, label: IND[key].label});
+  $("#ranking").innerHTML = `<table><thead><tr><th>${t("th_site")}</th><th>${t("th_region")}</th><th class="n">${esc(IND[key].label)}</th></tr></thead><tbody>
     ${rows.map(s => `<tr><td><a href="#/e/${esc(s.code)}">${esc(s.name)}</a></td><td class="meta">${regionLinks(s.regions)}</td><td class="n">${num(f(s.n), key === "fire_ha" ? 1 : 0)}</td></tr>`).join("")
-      || `<tr><td colspan="3" class="vacio">Ningún espacio.</td></tr>`}</tbody></table>`;
+      || `<tr><td colspan="3" class="vacio">${t("no_site")}</td></tr>`}</tbody></table>`;
 }
 
 function paintHome(key) {
@@ -246,16 +221,16 @@ function paintHome(key) {
     const v = f(D.sitesByCode[l.feature.properties.code]?.n || {}) || 0;
     l.setStyle({color: MAP_ACCENT, weight: v ? 1.2 : .6, fillColor: MAP_ACCENT, fillOpacity: .03 + .62 * Math.sqrt(v / max)});
   });
-  $("#leyenda").innerHTML = `<span><i style="opacity:.15"></i>ZEPA sin nada</span><span><i style="opacity:.65"></i>máximo: ${num(max, key === "fire_ha" ? 1 : 0)} ${esc(IND[key].label)}</span>`;
+  $("#leyenda").innerHTML = `<span><i style="opacity:.15"></i>${t("legend_none", {kind: D.kind})}</span><span><i style="opacity:.65"></i>${t("legend_max")}: ${num(max, key === "fire_ha" ? 1 : 0)} ${esc(IND[key].label)}</span>`;
 }
 
 function plazos() {
-  document.title = "Plazos abiertos · Estado de las IBA";
+  document.title = `${t("h_deadlines")} · ${T.title}`;
   const open = D.signals.filter(s => isOpen(s) && s.sites.length).sort((a, b) => a.deadline.localeCompare(b.deadline));
   $("#vista").innerHTML = `<div class="wrap">
-    <nav class="migas"><a href="#/">Inicio</a> › Plazos abiertos</nav>
-    <div class="lugar-cab"><h2>Plazos abiertos</h2></div>
-    <p class="sec-sub">${open.length} proyectos que tocan alguna ZEPA admiten alegaciones hoy. Los marcados «por municipio» no traen parcelas: puede que no entren en el espacio.</p>
+    <nav class="migas"><a href="#/">${t("home")}</a> › ${t("h_deadlines")}</nav>
+    <div class="lugar-cab"><h2>${t("h_deadlines")}</h2></div>
+    <p class="sec-sub">${t("deadlines_page_sub", {n: open.length, kind: D.kind})}</p>
     <ul class="lista">${open.map(s => plazoItem(s)).join("")}</ul></div>`;
 }
 
@@ -270,7 +245,7 @@ async function regionShapes() {
   return REGIONS_GEO;
 }
 function baseMap(el, opts = {}) {
-  const m = L.map(el, {zoomSnap: .5, ...opts}).setView([40.2, -3.7], 5.5);
+  const m = L.map(el, {zoomSnap: .5, ...opts}).setView(PAGE.center, PAGE.zoom);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 18, attribution: "© OpenStreetMap"}).addTo(m);
   MAPS.push(m);
   return m;
@@ -306,18 +281,21 @@ function scopeMuni(m) {
 }
 
 // Does the sibling behind a layer look at this place at all? Grey and «no cubre esta zona» when it
-// does not, so an empty layer never reads as «nothing happens here».
+// does not, so an empty layer never reads as «nothing happens here». A sibling that does not watch
+// this country at all says so in its coverage (absent).
 function cubre(ly, scope, list) {
   const src = D.sources[ly.source];
-  if (!src || src.coverage.label === "sin datos hoy") return {on: false, note: "sin datos hoy"};
+  if (!src || src.coverage.failed) return {on: false, note: t("no_data_today")};
+  if (src.coverage.absent) return {on: false, note: src.coverage.label};
+  const away = {on: false, note: `${t("not_covered")} · ${src.coverage.label}`};
   if (ly.id === "migracion") {
-    if (scope.kind === "site") return {on: false, note: "se prevé por ciudad, no por espacio"};
-    return scope.kind === "all" || list.length ? {on: true} : {on: false, note: `no cubre esta zona · ${src.coverage.label}`};
+    if (scope.kind === "site") return {on: false, note: t("by_city")};
+    return scope.kind === "all" || list.length ? {on: true} : away;
   }
   const cov = src.coverage.sites;
   if (cov == null) return {on: true};
   if (scope.kind === "all") return {on: true, note: src.coverage.label};
-  return scope.sites.some(c => cov.includes(c)) ? {on: true} : {on: false, note: `no cubre esta zona · ${src.coverage.label}`};
+  return scope.sites.some(c => cov.includes(c)) ? {on: true} : away;
 }
 
 function marca(latlng, html, size, title, pop, keyboard, zIndexOffset = 0) {
@@ -328,22 +306,22 @@ function marca(latlng, html, size, title, pop, keyboard, zIndexOffset = 0) {
 }
 function popup(s) {
   const sites = s.sites.slice(0, 3).map(x => `<a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>`).join(", ");
-  const status = s.status && !["notice", "migration"].includes(s.kind) ? " · " + esc(s.status) : "";
+  const status = s.status && !["notice", "migration"].includes(s.kind) ? " · " + STATUS(s) : "";
   return `<div class="pop">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a>
     <div class="meta">${fecha(s.date)}${value(s)}${status}${sites ? " · " + sites : ""}</div></div>`;
 }
 function popupNoche(s) {
   const ine = s.municipalities[0];
-  return `<div class="pop">${tag(s)}${ine ? `<a href="#/m/${esc(ine)}">${esc(s.details.city)}</a>` : esc(s.details.city)}: <b>${LEVEL[s.status] || esc(s.status)}</b>
-    <div class="meta">noche del ${fecha(s.date)} · según <a href="${esc(s.url)}">Sub Nocte</a></div></div>`;
+  return `<div class="pop">${tag(s)}${ine ? `<a href="#/m/${esc(ine)}">${esc(s.details.city)}</a>` : esc(s.details.city)}: <b>${LEVEL[s.status] || STATUS(s)}</b>
+    <div class="meta">${t("night_of", {date: fecha(s.date)})} · ${t("according_to")} <a href="${esc(s.url)}">Sub Nocte</a></div></div>`;
 }
 function popupProyectos(x) {
   const list = x.list.slice().sort((a, b) => (isOpen(b) - isOpen(a)) || b.date.localeCompare(a.date));
   const n = list.length;
-  return `<div class="pop"><b><a href="${esc(x.href)}">${esc(x.name)}</a></b> · ${n} ${n === 1 ? "proyecto" : "proyectos"}
+  return `<div class="pop"><b><a href="${esc(x.href)}">${esc(x.name)}</a></b> · ${tn("n_projects", n)}
     <ul>${list.slice(0, 6).map(s => `<li>${isOpen(s) ? `<span class="dias">${dias(s.deadline)}</span> ` : ""}<a href="${aviso(s)}">${esc(corta(s.title, 110))}</a>
-      <span class="meta">${fecha(s.date)}${s.precision === "municipio" ? " · por municipio" : ""}</span></li>`).join("")}</ul>
-    ${n > 6 ? `<a href="${esc(x.href)}">y ${n - 6} más</a>` : ""}</div>`;
+      <span class="meta">${fecha(s.date)}${s.precision === "municipio" ? " · " + t("by_muni") : ""}</span></li>`).join("")}</ul>
+    ${n > 6 ? `<a href="${esc(x.href)}">${t("and_more", {n: n - 6})}</a>` : ""}</div>`;
 }
 function size(ly, s) {
   if (ly.id === "migracion") return {"very high": 24, high: 20}[s.status] || 16;
@@ -377,7 +355,7 @@ function marcadores(ly, list, scope) {
     return [...at.values()].map(x => {
       const n = x.list.length, open = x.list.filter(isOpen).length, px = n >= 10 ? 26 : 22;
       const latlng = [x.point[1], x.point[0]];
-      const title = `${x.name}: ${n} ${n === 1 ? "proyecto" : "proyectos"}${open ? `, ${open} con plazo abierto` : ""}`;
+      const title = `${x.name}: ${tn("n_projects", n)}${open ? `, ${t("n_with_deadline", {n: open})}` : ""}`;
       // Big squares go under the other marks, so a wetland or a fire on the same spot stays visible.
       return {latlng, marker: marca(latlng, icono("square", ly.color, px, {text: n, double: open > 0}), px, title, popupProyectos(x), kb, -500)};
     });
@@ -400,8 +378,8 @@ async function mapaTodo(host, scope, label) {
   await Promise.all([munis(), shapes(), regionShapes()]);
   if (!host?.isConnected) return null;  // the reader moved on while the data loaded
   host.innerHTML = `<div class="mapa-todo"><div class="lienzo" role="region" aria-label="${esc(label)}"></div>
-    <div class="capas"><h3>Capas</h3><ul></ul>
-    <p class="meta">En gris, lo que ningún proyecto vigila aquí. Que no aparezca algo no significa que no ocurra.</p></div></div>`;
+    <div class="capas"><h3>${t("h_layers")}</h3><ul></ul>
+    <p class="meta">${t("layers_note")}</p></div></div>`;
   const map = baseMap($(".lienzo", host), {scrollWheelZoom: scope.kind === "all"});
 
   const outlines = scope.kind === "all" ? REGIONS_GEO.features
@@ -432,7 +410,7 @@ async function mapaTodo(host, scope, label) {
     if (on) groups[ly.id].addTo(map);
     pts.push(...marks.map(x => x.latlng));
     const open = ly.id === "proyectos" ? list.filter(isOpen).length : 0;
-    const notes = [open ? `${open} con plazo abierto: borde doble` : "", c.on && !list.length ? "vigilado, sin novedades" : "", c.note || ""].filter(Boolean);
+    const notes = [open ? `${t("n_with_deadline", {n: open})}: ${t("double_border")}` : "", c.on && !list.length ? t("watched_nothing") : "", c.note || ""].filter(Boolean);
     rows.push(`<li class="capa${c.on ? "" : " no-cubre"}"><label>
       <input type="checkbox" data-capa="${ly.id}" ${on ? "checked" : ""} ${marks.length ? "" : "disabled"}>
       ${icono(ly.shape, ly.color, 18, {stroke: ly.stroke})}<span class="nombre">${esc(ly.name)}</span>
@@ -481,7 +459,7 @@ async function mapaTodo(host, scope, label) {
 function buscador() {
   return `<div class="buscador" role="search">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-    <input id="q" type="search" autocomplete="off" placeholder="Busca un espacio, un municipio o una comunidad" aria-label="Busca un espacio, un municipio o una comunidad"
+    <input id="q" type="search" autocomplete="off" placeholder="${esc(t("search"))}" aria-label="${esc(t("search"))}"
       aria-controls="resultados" aria-expanded="false">
     <ul class="resultados" id="resultados" role="listbox" hidden></ul></div>`;
 }
@@ -498,23 +476,23 @@ function wireSearch() {
   let sel = -1;
   q.addEventListener("focus", () => munis(), {once: true});
   q.addEventListener("input", async () => {
-    const t = norm(q.value.trim());
+    const term = norm(q.value.trim());
     sel = -1;
-    if (t.length < 2) { out.hidden = true; q.setAttribute("aria-expanded", "false"); return; }
+    if (term.length < 2) { out.hidden = true; q.setAttribute("aria-expanded", "false"); return; }
     await munis();
-    const score = k => k.startsWith(t) ? 0 : k.includes(" " + t) || k.includes("/" + t) ? 1 : k.includes(t) ? 2 : 9;
+    const score = k => k.startsWith(term) ? 0 : k.includes(" " + term) || k.includes("/" + term) || k.includes("-" + term) ? 1 : k.includes(term) ? 2 : 9;
     const regs = D.regions.map(r => ({r, s: Math.min(score(norm(r.name)), score(norm(r.official)))})).filter(x => x.s < 9);
-    const sites = D.sites.map(s => ({s, r: s.code.toLowerCase() === t ? -1 : score(norm(s.name))})).filter(x => x.r < 9);
+    const sites = D.sites.map(s => ({s, r: s.code.toLowerCase() === term ? -1 : score(norm(s.name))})).filter(x => x.r < 9);
     const ms = M.map(m => ({m, r: score(m.key)})).filter(x => x.r < 9);
     regs.sort((a, b) => a.s - b.s);
-    sites.sort((a, b) => a.r - b.r || a.s.name.localeCompare(b.s.name, "es"));
+    sites.sort((a, b) => a.r - b.r || byName(a.s.name, b.s.name));
     ms.sort((a, b) => a.r - b.r || a.m.name.length - b.m.name.length);
     const items = [
-      ...regs.slice(0, 3).map(({r}) => `<li><a role="option" href="#/ca/${esc(r.id)}"><span class="tipo">Comunidad</span><span>${esc(r.name)}</span><span class="extra">${r.sites.length} ZEPA</span></a></li>`),
-      ...sites.slice(0, 6).map(({s}) => `<li><a role="option" href="#/e/${esc(s.code)}"><span class="tipo">Espacio</span><span>${esc(s.name)}</span><span class="extra">${esc(s.code)}</span></a></li>`),
-      ...ms.slice(0, 8).map(({m}) => `<li><a role="option" href="#/m/${esc(m.ine)}"><span class="tipo">Municipio</span><span>${esc(m.name)}</span><span class="extra">${esc(m.province || D.regionsById[m.region]?.name || "")}</span></a></li>`),
+      ...regs.slice(0, 3).map(({r}) => `<li><a role="option" href="#/ca/${esc(r.id)}"><span class="tipo">${t("t_region")}</span><span>${esc(r.name)}</span><span class="extra">${r.sites.length} ${esc(D.kind)}</span></a></li>`),
+      ...sites.slice(0, 6).map(({s}) => `<li><a role="option" href="#/e/${esc(s.code)}"><span class="tipo">${t("th_site")}</span><span>${esc(s.name)}</span><span class="extra">${esc(s.code)}</span></a></li>`),
+      ...ms.slice(0, 8).map(({m}) => `<li><a role="option" href="#/m/${esc(m.ine)}"><span class="tipo">${t("t_muni")}</span><span>${esc(m.name)}</span><span class="extra">${esc(m.province || D.regionsById[m.region]?.name || "")}</span></a></li>`),
     ];
-    out.innerHTML = items.join("") || `<li class="vacio" style="padding:8px 14px">Sin resultados.</li>`;
+    out.innerHTML = items.join("") || `<li class="vacio" style="padding:8px 14px">${t("no_results")}</li>`;
     out.hidden = false;
     q.setAttribute("aria-expanded", "true");
   });
@@ -537,8 +515,8 @@ function wireSearch() {
 /* ---------- Community ---------- */
 
 function tablaEspacios(sites) {
-  return `<div class="ranking tabla"><table><thead><tr><th>Espacio</th><th class="n">Proyectos</th><th class="n">Por parcelas</th>
-    <th class="n">Plazo abierto</th><th class="n">Ha quemadas</th></tr></thead><tbody>
+  return `<div class="ranking tabla"><table><thead><tr><th>${t("th_site")}</th><th class="n">${t("th_projects")}</th><th class="n">${t("th_parcels")}</th>
+    <th class="n">${t("th_open")}</th><th class="n">${t("th_burnt")}</th></tr></thead><tbody>
     ${sites.map(s => `<tr><td><a href="#/e/${esc(s.code)}">${esc(s.name)}</a></td><td class="n">${num(s.n.notices)}</td><td class="n">${num(s.n.precise)}</td>
       <td class="n">${num(s.n.open)}</td><td class="n">${num(s.n.fire_ha, s.n.fire_ha ? 1 : 0)}</td></tr>`).join("")}</tbody></table></div>`;
 }
@@ -546,49 +524,49 @@ function tablaEspacios(sites) {
 function regionView(id) {
   const r = D.regionsById[id];
   if (!r) return notFound();
-  document.title = `${r.name} · Estado de las IBA`;
+  document.title = `${r.name} · ${T.title}`;
   const list = (byRegion.get(id) || []).filter(s => s.sites.length).sort((a, b) => b.date.localeCompare(a.date));
   const open = list.filter(s => isOpen(s) && s.sites.length).sort((a, b) => a.deadline.localeCompare(b.deadline));
-  const sites = r.sites.map(c => D.sitesByCode[c]).sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const sites = r.sites.map(c => D.sitesByCode[c]).sort((a, b) => byName(a.name, b.name));
   const land = sites.filter(s => !s.marine), sea = sites.filter(s => s.marine);
-  const kind = ["18", "19"].includes(id) ? "Ciudad autónoma" : "Comunidad autónoma";
+  const kind = (T.region_kinds || {})[id] || t("region_kind");
   $("#vista").innerHTML = `<div class="wrap">
-    <nav class="migas"><a href="#/">Inicio</a> › Comunidad</nav>
+    <nav class="migas"><a href="#/">${t("home")}</a> › ${t("t_region")}</nav>
     <div class="lugar-cab"><h2>${esc(r.name)}</h2>
-      <span class="codigo">${kind}${r.official !== r.name ? " · " + esc(r.official) : ""} · ${sites.length} ZEPA · INE ${esc(id)}</span></div>
+      <span class="codigo">${kind}${r.official !== r.name ? " · " + esc(r.official) : ""} · ${sites.length} ${esc(D.kind)} · ${t("code_office")} ${esc(id)}</span></div>
     <div id="mapa-host" class="mapa-host"></div>
     <div class="dos">
       <section class="bloque-home">
-        ${open.length ? `<div class="actuar"><h3>Puedes alegar</h3>
-          <p>${open.length === 1 ? "Un proyecto que toca una ZEPA de la comunidad admite alegaciones" : `${open.length} proyectos que tocan ZEPA de la comunidad admiten alegaciones`}.</p>
-          <ul class="lista">${open.map(x => plazoItem(x)).join("")}</ul></div>` : `<h2 class="sec">Plazos abiertos</h2><p class="vacio">Ningún plazo abierto hoy.</p>`}
+        ${open.length ? `<div class="actuar"><h3>${t("h_act")}</h3>
+          <p>${tn("act_region", open.length, {kind: D.kind})}.</p>
+          <ul class="lista">${open.map(x => plazoItem(x)).join("")}</ul></div>` : `<h2 class="sec">${t("h_deadlines")}</h2><p class="vacio">${t("no_deadline")}</p>`}
       </section>
       <section class="bloque-home">
-        <h2 class="sec">Esta semana</h2>
-        <p class="sec-sub">Lo nuevo en los últimos 7 días en sus espacios.</p>
+        <h2 class="sec">${t("h_week")}</h2>
+        <p class="sec-sub">${t("week_sub_region")}</p>
         ${semana(list)}
       </section>
     </div>
     <section class="bloque-home">
-      <h2 class="sec">Sus espacios</h2>
-      <p class="sec-sub">Las ZEPA que tocan algún municipio de ${esc(r.name)}. Las que comparte con otra comunidad salen en las dos.</p>
-      ${land.length ? tablaEspacios(land) : `<p class="vacio">Ninguna ZEPA toca tierra aquí.</p>`}
-      ${sea.length ? `<h3 class="mes">En el mar o en islotes</h3>
-        <p class="sec-sub">No tocan ningún término municipal del IGN; van con la comunidad de la costa más cercana.</p>${tablaEspacios(sea)}` : ""}
+      <h2 class="sec">${t("h_its_sites")}</h2>
+      <p class="sec-sub">${t("its_sites_sub", {kind: D.kind, name: esc(r.name)})}</p>
+      ${land.length ? tablaEspacios(land) : `<p class="vacio">${t("no_land_site", {kind: D.kind})}</p>`}
+      ${sea.length ? `<h3 class="mes">${t("h_sea")}</h3>
+        <p class="sec-sub">${t("sea_sub")}</p>${tablaEspacios(sea)}` : ""}
     </section>
     <div class="lugar">
       <div>${hilo(list)}</div>
-      <aside><div class="panel rss"><h3>Recibe los avisos</h3>
-        <p style="margin:0 0 6px">Cada novedad en los espacios y municipios de ${esc(r.name)}, en tu lector de noticias:</p>
+      <aside><div class="panel rss"><h3>${t("h_rss")}</h3>
+        <p style="margin:0 0 6px">${t("rss_region", {name: esc(r.name)})}</p>
         <a href="rss/ca-${esc(id)}.xml">rss/ca-${esc(id)}.xml</a></div></aside>
     </div></div>`;
   window.scrollTo(0, 0);
-  mapaTodo($("#mapa-host"), scopeRegion(r), `Mapa de ${r.name}`);
+  mapaTodo($("#mapa-host"), scopeRegion(r), t("map_of", {name: r.name}));
 }
 
 /* ---------- Site ---------- */
 
-function timeline(list, code, empty = "Ningún registro todavía en los proyectos que vigilan este espacio.") {
+function timeline(list, code, empty = t("timeline_empty")) {
   if (!list.length) return `<p class="vacio">${esc(empty)}</p>`;
   let html = "", month = "";
   for (const s of list) {
@@ -601,16 +579,16 @@ function timeline(list, code, empty = "Ningún registro todavía en los proyecto
 function signalItem(s, code) {
   const d = s.details || {};
   const extra = [];
-  if (s.kind === "notice") extra.push(s.deadline ? (s.deadline >= D.today ? `alegaciones hasta el ${fecha(s.deadline)}` : `plazo cerrado el ${fecha(s.deadline)}`) : "sin plazo conocido");
-  if (s.status && s.kind !== "notice") extra.push(esc(s.status));
+  if (s.kind === "notice") extra.push(s.deadline ? (s.deadline >= D.today ? t("comments_until", {date: fecha(s.deadline)}) : t("closed_on", {date: fecha(s.deadline)})) : t("no_known_deadline"));
+  if (s.status && s.kind !== "notice") extra.push(STATUS(s));
   if (d.promoter) extra.push(esc(d.promoter));
   if (d.permit) extra.push(esc(d.permit));
-  if (s.kind === "night_light") extra.push(`${num(d.radiance, 2)} nW/cm²/sr frente a ${num(d.baseline, 2)}; como los igual de oscuros, ${num(d.expected, 2)} · píxeles VIIRS de unos 500 m`);
+  if (s.kind === "night_light") extra.push(t("light_line", {now: num(d.radiance, 2), before: num(d.baseline, 2), expected: num(d.expected, 2)}));
   else if (PRECISION[s.precision] && !["wetland_water", "flood_building", "wastewater", "bathing_water"].includes(s.kind)) extra.push(PRECISION[s.precision]);
   const fotos = d.before && d.after ? `<div class="fotos">
-      <figure><img loading="lazy" src="${esc(d.before)}" alt="Antes"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
-      <figure><img loading="lazy" src="${esc(d.after)}" alt="Después"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
-  const means = MEANS[s.kind] ? `<details class="significa"><summary>¿Qué significa?</summary><p>${esc(MEANS[s.kind])}${s.precision === "municipio" && s.kind !== "flood_building" ? " " + esc(PREC_NOTE.municipio) : ""}</p></details>` : "";
+      <figure><img loading="lazy" src="${esc(d.before)}" alt="${esc(t("Before"))}"><figcaption>${t("before")} · ${fecha(d.before_date)}</figcaption></figure>
+      <figure><img loading="lazy" src="${esc(d.after)}" alt="${esc(t("After"))}"><figcaption>${t("after")} · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
+  const means = MEANS[s.kind] ? `<details class="significa"><summary>${t("what_means")}</summary><p>${esc(MEANS[s.kind])}${s.precision === "municipio" && s.kind !== "flood_building" ? " " + esc(PREC_NOTE.municipio) : ""}</p></details>` : "";
   return `<li class="item ${isOpen(s) ? "urgente" : ""}">
     <div class="t">${tag(s)}<a href="${aviso(s)}">${esc(s.title)}</a></div>
     <div class="meta">${fecha(s.date)}${code ? siteHa(s, code) : ""}${value(s)} · ${extra.join(" · ")}</div>${fotos}${means}</li>`;
@@ -618,80 +596,79 @@ function signalItem(s, code) {
 function hilo(list) {
   const chains = list.filter(s => s.kind === "notice" && D.chains?.[s.id]).flatMap(s => D.chains[s.id].map(c => ({s, c})));
   if (!chains.length) return "";
-  return `<div class="panel"><h3>Quién está detrás</h3><ul class="hilo">${chains.map(({s, c}) => `<li>
-    <div class="cadena">${c.links.map(l => `<span>${l.url ? `<a href="${esc(l.url)}">${esc(l.name)}</a>` : esc(l.name)}${l.via === "por el grupo" ? ` <small class="meta">(por el grupo)</small>` : ""}</span>`).join("")}</div>
+  return `<div class="panel"><h3>${t("h_behind")}</h3><ul class="hilo">${chains.map(({s, c}) => `<li>
+    <div class="cadena">${c.links.map(l => `<span>${l.url ? `<a href="${esc(l.url)}">${esc(l.name)}</a>` : esc(l.name)}${l.via === "por el grupo" ? ` <small class="meta">(${t("via_group")})</small>` : ""}</span>`).join("")}</div>
     <span class="meta">${esc(s.title.slice(0, 90))}…</span></li>`).join("")}</ul></div>`;
 }
 function siteView(code) {
   const s = D.sitesByCode[code];
   if (!s) return notFound();
-  document.title = `${s.name} · Estado de las IBA`;
+  document.title = `${s.name} · ${T.title}`;
   const list = (bySite.get(code) || []).slice().sort((a, b) => b.date.localeCompare(a.date));
   const open = list.filter(isOpen).sort((a, b) => a.deadline.localeCompare(b.deadline));
   $("#vista").innerHTML = `<div class="wrap">
-    <nav class="migas"><a href="#/">Inicio</a> › ${regionLinks(s.regions)} › Espacio</nav>
+    <nav class="migas"><a href="#/">${t("home")}</a> › ${regionLinks(s.regions)} › ${t("th_site")}</nav>
     <div class="lugar-cab"><h2>${esc(s.name)}</h2>
-      <span class="codigo">${esc(s.code)} · ${esc(D.kind)} de la Red Natura 2000${s.marine ? " · en el mar o en islotes" : ""}</span>
-      ${s.munis.length ? `<ul class="municipios" aria-label="Municipios">${s.munis.map(([ine, name]) => `<li><a href="#/m/${esc(ine)}">${esc(name)}</a></li>`).join("")}</ul>` : ""}
+      <span class="codigo">${esc(s.code)} · ${t("site_kind_line", {kind: D.kind})}${s.marine ? " · " + t("at_sea") : ""}</span>
+      ${s.munis.length ? `<ul class="municipios" aria-label="${esc(t("munis"))}">${s.munis.map(([ine, name]) => `<li><a href="#/m/${esc(ine)}">${esc(name)}</a></li>`).join("")}</ul>` : ""}
     </div>
     <div id="mapa-host" class="mapa-host"></div>
     <div class="lugar">
       <div>
-        ${open.length ? `<div class="actuar"><h3>Puedes alegar</h3>
-          <p>${open.length === 1 ? "Un proyecto que toca este espacio admite alegaciones" : `${open.length} proyectos que tocan este espacio admiten alegaciones`}. Cualquier persona o entidad puede presentarlas.</p>
+        ${open.length ? `<div class="actuar"><h3>${t("h_act")}</h3>
+          <p>${tn("act_site", open.length)}. ${t("anyone_can")}</p>
           <ul class="lista">${open.map(x => plazoItem(x, code)).join("")}</ul></div>` : ""}
-        <section class="cronologia"><h2 class="sec">Qué ha pasado</h2>${timeline(list, code)}</section>
+        <section class="cronologia"><h2 class="sec">${t("h_happened")}</h2>${timeline(list, code)}</section>
         <section class="aves" id="aves-panel" hidden></section>
       </div>
       <aside>
         ${hilo(list)}
         <div class="panel luz" id="luz-panel" hidden></div>
-        <div class="panel rss"><h3>Recibe los avisos</h3>
-          <p style="margin:0 0 6px">Suscríbete con tu lector de noticias para enterarte de cada novedad en este espacio:</p>
+        <div class="panel rss"><h3>${t("h_rss")}</h3>
+          <p style="margin:0 0 6px">${t("rss_site")}</p>
           <a href="rss/${esc(code)}.xml">rss/${esc(code)}.xml</a></div>
       </aside>
     </div></div>`;
   window.scrollTo(0, 0);
-  mapaTodo($("#mapa-host"), scopeSite(s), `Mapa de ${s.name}`);
+  mapaTodo($("#mapa-host"), scopeSite(s), t("map_of", {name: s.name}));
   luzPanel(code);
   avesPanel(code, s.name);
 }
 
 /* Birds: the species the site was designated for, from its Natura 2000 form, read only when a site is opened. */
+// aves.json holds every country's sites and each species' name in every language of the panel.
 let AVES;
-const SEASON = {p: "todo el año", r: "cría", w: "inverna", c: "en paso"};
-const GRADE = {A: "Más del 15 % de las de España", B: "Entre el 2 y el 15 %", C: "Menos del 2 %",
-  X: "Importantes aquí, sin porcentaje en el formulario", N: "Presentes, sin evaluar en el formulario"};
+const SEASON = T.season, GRADE = T.grade;
 async function avesPanel(code, name) {
   const host = $("#aves-panel");
   if (!host) return;
-  try { AVES ||= await fetch("datos/aves.json").then(r => r.json()); } catch { return; }
+  try { AVES ||= await fetch(PAGE.shared + "datos/aves.json").then(r => r.json()); } catch { return; }
   const x = AVES.sites[code];
   if (!x || !host.isConnected) return;
   const sdf = `https://natura2000.eea.europa.eu/Natura2000/SDF.aspx?site=${encodeURIComponent(code)}`;
+  const li = (AVES.languages || ["es"]).indexOf(PAGE.lang) + 1;
   const item = ([sp, seasons]) => {
-    const [sci, es] = AVES.species[sp];
+    const sci = AVES.species[sp][0], es = (li && AVES.species[sp][li]) || sci;
     return `<li><span class="ave">${esc(es)}</span>${es !== sci ? ` <i class="meta">${esc(sci)}</i>` : ""}
-      <span class="meta">· ${[...seasons].map(k => SEASON[k]).join(", ") || "época sin indicar"}</span></li>`;
+      <span class="meta">· ${[...seasons].map(k => SEASON[k]).join(", ") || t("no_season")}</span></li>`;
   };
   const groups = Object.keys(GRADE).map(g => [g, x.birds.filter(b => b[2] === g)]).filter(([, l]) => l.length);
   const block = ([g, l]) => {
-    const head = `${GRADE[g]} <span class="meta">· ${l.length} ${l.length === 1 ? "especie" : "especies"}</span>`;
+    const head = `${GRADE[g]} <span class="meta">· ${tn("n_species", l.length)}</span>`;
     const ul = `<ul class="aves-lista">${l.map(item).join("")}</ul>`;
     // A long tail of small shares is folded, so the species the site matters most for come first.
     return g !== groups[0][0] && "CN".includes(g) && l.length > 12
       ? `<details><summary><h3 class="aves-grado">${head}</h3></summary>${ul}</details>`
       : `<h3 class="aves-grado">${head}</h3>${ul}`;
   };
-  const other = x.other ? `<p class="meta">Y ${x.other === 1 ? "otra especie presente" : `otras ${x.other} especies presentes`}
-    con una población poco significativa aquí o sin evaluar.</p>` : "";
+  const other = x.other ? `<p class="meta">${tn("other_species", x.other)}</p>` : "";
   host.hidden = false;
-  host.innerHTML = `<h2 class="sec">Sus aves</h2>
-    <p class="sec-sub">Las especies que da el formulario oficial de ${esc(name)} como ${esc(D.kind)}: qué parte de las que hay en España acoge cada una y en qué época del año.</p>
-    ${groups.length ? groups.map(block).join("") : `<p class="vacio">El formulario no atribuye a este espacio ninguna población significativa de aves.</p>`}
+  host.innerHTML = `<h2 class="sec">${t("h_birds")}</h2>
+    <p class="sec-sub">${t("birds_sub", {name: esc(name), kind: esc(D.kind)})}</p>
+    ${groups.length ? groups.map(block).join("") : `<p class="vacio">${t("no_birds")}</p>`}
     ${other}
-    <p class="meta fuente">Formulario normalizado de datos de Natura 2000 (Agencia Europea de Medio Ambiente, ${esc(AVES.version.replace("end", "final de ").replace(" rev1", ""))}), <a href="https://creativecommons.org/licenses/by/4.0/deed.es">CC BY 4.0</a> ·
-      <a href="${sdf}">ficha oficial</a> · <a href="https://doi.org/${esc(AVES.doi)}">datos</a> · nombres en castellano del MITECO · <a href="datos/aves.json">aves.json</a></p>`;
+    <p class="meta fuente">${t("birds_source", {version: esc(AVES.version.replace("end", T.release_end).replace(" rev1", ""))})} ·
+      <a href="${sdf}">${t("official_form")}</a> · <a href="https://doi.org/${esc(AVES.doi)}">${t("data")}</a> · ${t("bird_names")} · <a href="${PAGE.shared}datos/aves.json">aves.json</a></p>`;
 }
 
 // The round number just above v and the decimals it needs: 0.69 -> 0.8, 3.2 -> 4, 0.21 -> 0.25.
@@ -706,32 +683,31 @@ let LUZ;
 async function luzPanel(code) {
   const host = $("#luz-panel"), cov = D.sources["black-marble"]?.coverage;
   if (!host || !cov?.baseline) return;
-  try { LUZ ||= await fetch("datos/luz.json").then(r => r.json()); } catch { return; }
+  try { LUZ ||= await fetch("datos/luz.json").then(r => r.json()); } catch { return; }  // one file per country: its sites are held to their own peers
   const x = LUZ.sites[code];
   if (!x || !host.isConnected) return;
-  const years = LUZ.years, r = x.radiance, src = `<p class="meta fuente">NASA Black Marble (VIIRS), píxeles de unos 500 m ·
-    <a href="https://doi.org/${esc(LUZ.doi)}">producto</a> · <a href="datos/luz.json">luz.json</a></p>`;
+  const years = LUZ.years, r = x.radiance, src = `<p class="meta fuente">${t("light_source")} ·
+    <a href="https://doi.org/${esc(LUZ.doi)}">${t("product")}</a> · <a href="datos/luz.json">luz.json</a></p>`;
   host.hidden = false;
   if (!cov.sites.includes(code)) {
-    host.innerHTML = `<h3>Luz artificial de noche</h3><p class="vacio">Con ${x.pixels} ${x.pixels === 1 ? "píxel" : "píxeles"} de
-      unos 500 m, el espacio es demasiado pequeño o le faltan años para leer una tendencia.</p>${src}`;
+    host.innerHTML = `<h3>${KIND.night_light.theme}</h3><p class="vacio">${tn("light_small", x.pixels)}</p>${src}`;
     return;
   }
   const [b0, b1] = cov.baseline, mean = a => a.reduce((t, v) => t + v, 0) / a.length;
   const ref = mean(r.filter((_, i) => years[i] >= b0 && years[i] <= b1)), now = r.slice(-cov.recent);
   const cur = mean(now), pct = Math.round(100 * (cur / ref - 1)), span = `${years.at(-cov.recent)}-${years.at(-1)}`;
-  const delta = pct === 0 ? "lo mismo" : `un ${Math.abs(pct)} % ${pct > 0 ? "más" : "menos"}`;
-  const caption = i => r[i] == null ? `${years[i]}: sin dato` : `${years[i]}: ${num(r[i], 2)} nW/cm²/sr`;
+  const delta = pct === 0 ? t("light_same") : t(pct > 0 ? "light_more" : "light_less", {pct: t("pct", {n: Math.abs(pct)})});
+  const caption = i => r[i] == null ? `${years[i]}: ${t("no_value")}` : `${years[i]}: ${num(r[i], 2)} nW/cm²/sr`;
   const sig = (bySite.get(code) || []).find(s => s.kind === "night_light"), d = sig?.details;
   const drift = d && Math.round(100 * (d.expected / d.baseline - 1));
   const peers = sig
-    ? `En los espacios que eran igual de oscuros ${drift < 0 ? "bajó" : "subió"} un ${Math.abs(drift)} %: aquí hay un ${sig.value.amount} % más luz de la esperable.`
-    : "Cada espacio se compara con los que eran igual de oscuros, porque el producto de la NASA sube y baja de un año a otro en todo el país a la vez.";
-  host.innerHTML = `<h3>Luz artificial de noche</h3>
-    <p style="margin:0 0 6px">Brillo medio en ${span}: <b>${num(cur, 2)}</b> nW/cm²/sr, ${delta} que en ${b0}-${b1}.${pct < 0 ? " Una bajada puede ser solo el cambio a LED, que el satélite apenas ve." : ""} ${peers}</p>
+    ? t(drift < 0 ? "light_peers_down" : "light_peers_up", {drift: pct_(Math.abs(drift)), over: pct_(sig.value.amount)})
+    : t("light_peers_none");
+  host.innerHTML = `<h3>${KIND.night_light.theme}</h3>
+    <p style="margin:0 0 6px">${t("light_mean", {span, value: `<b>${num(cur, 2)}</b>`, delta, base: `${b0}-${b1}`})}${pct < 0 ? " " + t("light_led") : ""} ${peers}</p>
     <div class="luz-graf"></div>
     <p class="meta luz-dato" aria-live="polite">${caption(years.length - 1)}</p>
-    <details><summary>Ver los datos</summary><table class="luz-tabla"><thead><tr><th>Año</th><th class="n">nW/cm²/sr</th></tr></thead>
+    <details><summary>${t("see_data")}</summary><table class="luz-tabla"><thead><tr><th>${t("year")}</th><th class="n">nW/cm²/sr</th></tr></thead>
       <tbody>${years.map((y, i) => `<tr><td>${y}</td><td class="n">${num(r[i], 2)}</td></tr>`).join("")}</tbody></table></details>${src}`;
   // Drawn at the box's own width (it changes once the map settles), so text and points keep their size.
   const graf = $(".luz-graf", host), out = $(".luz-dato", host);
@@ -770,10 +746,10 @@ function luzChart(years, r, ref, base, above, W) {
   });
   const step = (W - L - R) / Math.max(1, years.length - 1);
   const xs = years.map((_, i) => `data-x${i}="${x(i).toFixed(1)}"`).join(" ");
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Brillo medio de noche en el espacio, de ${years[0]} a ${years.at(-1)}">
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t("light_chart", {from: years[0], to: years.at(-1)}))}">
     <line class="eje-l" x1="${L}" x2="${W - R}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>
     <line class="ref" x1="${L}" x2="${W - R}" y1="${y(ref).toFixed(1)}" y2="${y(ref).toFixed(1)}"/>
-    <text class="eje" x="${W - R}" y="${(y(ref) + (above ? 13 : -5)).toFixed(1)}" text-anchor="end">media ${esc(base)}</text>
+    <text class="eje" x="${W - R}" y="${(y(ref) + (above ? 13 : -5)).toFixed(1)}" text-anchor="end">${t("mean")} ${esc(base)}</text>
     <text class="eje" x="${L - 6}" y="${(y(top) + 4).toFixed(1)}" text-anchor="end">${num(top, dec)}</text>
     <text class="eje" x="${L - 6}" y="${(y(0) + 4).toFixed(1)}" text-anchor="end">0</text>
     <text class="eje" x="${x(0).toFixed(1)}" y="${H - 4}" text-anchor="start">${years[0]}</text>
@@ -791,44 +767,44 @@ async function muniView(ine) {
   await munis();
   const m = M.byIne[ine];
   if (!m) return notFound();
-  document.title = `${m.name} · Estado de las IBA`;
+  document.title = `${m.name} · ${T.title}`;
   const list = (byMuni.get(ine) || []).slice().sort((a, b) => b.date.localeCompare(a.date));
   const open = list.filter(isOpen).sort((a, b) => a.deadline.localeCompare(b.deadline));
   const sites = m.sites.map(c => D.sitesByCode[c]).filter(Boolean);
   $("#vista").innerHTML = `<div class="wrap">
-    <nav class="migas"><a href="#/">Inicio</a> › ${m.region ? regionLinks([m.region]) + " › " : ""}Municipio</nav>
-    <div class="lugar-cab"><h2>${esc(m.name)}</h2><span class="codigo">${esc(m.province || "Sin provincia: tierra en común de varios municipios")} · INE ${esc(ine)}</span></div>
+    <nav class="migas"><a href="#/">${t("home")}</a> › ${m.region ? regionLinks([m.region]) + " › " : ""}${t("t_muni")}</nav>
+    <div class="lugar-cab"><h2>${esc(m.name)}</h2><span class="codigo">${esc(m.province || t("no_province"))} · ${t("code_office")} ${esc(ine)}</span></div>
     <div id="mapa-host" class="mapa-host"></div>
     <div class="lugar">
       <div>
-        ${open.length ? `<div class="actuar"><h3>Puedes alegar</h3>
-          <p>${open.length === 1 ? "Un proyecto en este municipio admite alegaciones" : `${open.length} proyectos en este municipio admiten alegaciones`}.</p>
+        ${open.length ? `<div class="actuar"><h3>${t("h_act")}</h3>
+          <p>${tn("act_muni", open.length)}.</p>
           <ul class="lista">${open.map(x => plazoItem(x)).join("")}</ul></div>` : ""}
-        <section class="cronologia"><h2 class="sec">Lo que nombra a ${esc(m.name)}</h2>${timeline(list, null, "Ningún anuncio, incendio ni alerta vigilados nombra este municipio todavía.")}</section>
+        <section class="cronologia"><h2 class="sec">${t("h_names", {name: esc(m.name)})}</h2>${timeline(list, null, t("muni_empty"))}</section>
       </div>
       <aside>
-        <div class="panel"><h3>Espacios en el municipio</h3>
+        <div class="panel"><h3>${t("h_sites_in_muni")}</h3>
         ${sites.length ? `<ul class="lista">${sites.map(s => `<li class="item"><div class="t"><a href="#/e/${esc(s.code)}">${esc(s.name)}</a></div>
           <div class="meta">${resumen(s.n)}</div></li>`).join("")}</ul>`
-          : `<p class="vacio">Ninguna ZEPA entra en este municipio.</p>`}</div>
+          : `<p class="vacio">${t("no_site_in_muni", {kind: D.kind})}</p>`}</div>
       </aside>
     </div></div>`;
   window.scrollTo(0, 0);
-  mapaTodo($("#mapa-host"), scopeMuni(m), `Mapa de ${m.name}`);
+  mapaTodo($("#mapa-host"), scopeMuni(m), t("map_of", {name: m.name}));
 }
 
 function resumen(n) {
-  const parts = [`${n.notices} ${n.notices === 1 ? "proyecto" : "proyectos"}`];
-  if (n.open) parts.push(`${n.open} con plazo abierto`);
-  if (n.fire_ha) parts.push(`${num(n.fire_ha, 1)} ha quemadas`);
-  if (n.land) parts.push(`${n.land} ${n.land === 1 ? "cambio de uso" : "cambios de uso"}`);
-  if (n.light) parts.push(`${n.light} % más luz de noche que otros espacios igual de oscuros`);
+  const parts = [tn("n_projects", n.notices)];
+  if (n.open) parts.push(t("n_with_deadline", {n: n.open}));
+  if (n.fire_ha) parts.push(t("ha_burnt", {ha: num(n.fire_ha, 1)}));
+  if (n.land) parts.push(tn("n_land", n.land));
+  if (n.light) parts.push(t("light_more_peers", {pct: pct_(n.light)}));
   return parts.join(" · ");
 }
 
-function notFound(what = "ese lugar") {
-  document.title = "Estado de las IBA";
-  $("#vista").innerHTML = `<div class="wrap"><nav class="migas"><a href="#/">Inicio</a></nav><p class="vacio">No encuentro ${esc(what)}.</p></div>`;
+function notFound(what = t("that_place")) {
+  document.title = T.title;
+  $("#vista").innerHTML = `<div class="wrap"><nav class="migas"><a href="#/">${t("home")}</a></nav><p class="vacio">${t("not_found", {what: esc(what)})}</p></div>`;
 }
 
 /* ---------- Signal ---------- */
@@ -837,78 +813,79 @@ function notFound(what = "ese lugar") {
 function datos(s) {
   const d = s.details || {}, out = [];
   const add = (k, v) => { if (v != null && v !== "") out.push([k, v]); };
-  if (s.kind === "notice") add("Alegaciones", s.deadline ? (s.deadline >= D.today ? `hasta el ${fecha(s.deadline)} (${dias(s.deadline)})` : `plazo cerrado el ${fecha(s.deadline)}`) : "sin plazo conocido");
-  if (["notice", "resolution"].includes(s.kind)) add("Promotor", esc(d.promoter));
+  const F = T.fields;
+  if (s.kind === "notice") add(F.comments, s.deadline ? (s.deadline >= D.today ? `${t("until", {date: fecha(s.deadline)})} (${dias(s.deadline)})` : t("closed_on", {date: fecha(s.deadline)})) : t("no_known_deadline"));
+  if (["notice", "resolution"].includes(s.kind)) add(F.promoter, esc(d.promoter));
   if (s.kind === "land_change") {
-    add("Estado", esc(s.status));
-    add("Superficie", `${num(s.value?.amount, 2)} ha`);
-    add("Antes era", esc(d.cover));
-    add("Expediente", esc(d.permit));
-    add("Parcelas catastrales que toca", d.parcels != null ? num(d.parcels) : null);
-    if (d.history?.length) add("Historia", d.history.map(([f, e]) => `${fecha(f)}: ${esc(e)}`).join(" · "));
+    add(F.status, STATUS(s));
+    add(F.area, `${num(s.value?.amount, 2)} ha`);
+    add(F.cover, esc(d.cover));
+    add(F.permit, esc(d.permit));
+    add(F.parcels, d.parcels != null ? num(d.parcels) : null);
+    if (d.history?.length) add(F.history, d.history.map(([f, e]) => `${fecha(f)}: ${esc(e)}`).join(" · "));
   } else if (s.kind === "fire") {
-    add("Superficie", s.value ? `${num(s.value.amount, 1)} ha` : null);
-    add("Provincia", esc(d.province));
-    add("Estado", esc(s.status));
+    add(F.area, s.value ? `${num(s.value.amount, 1)} ha` : null);
+    add(F.province, esc(d.province));
+    add(F.status, STATUS(s));
   } else if (s.kind === "wetland_water") {
-    add("Agua libre", `${num(s.value?.amount, 0)} ha`);
-    add("Lo normal en ese mes", d.ref_ha != null ? `${num(d.ref_ha, 0)} ha (mediana de ${d.ref_years?.[0]}-${d.ref_years?.at(-1)})` : null);
+    add(F.water, `${num(s.value?.amount, 0)} ha`);
+    add(F.normal, d.ref_ha != null ? t("normal_value", {ha: num(d.ref_ha, 0), from: d.ref_years?.[0], to: d.ref_years?.at(-1)}) : null);
   } else if (s.kind === "river_flow") {
-    add("Caudal", `${num(s.value?.amount, 2)} m³/s`);
-    add("Caudal mínimo legal", d.minimum != null ? `${num(d.minimum, 2)} m³/s` : null);
-    add("Días por debajo", d.days != null ? `${num(d.days_below)} de ${num(d.days)}` : null);
+    add(F.flow, `${num(s.value?.amount, 2)} m³/s`);
+    add(F.minimum, d.minimum != null ? `${num(d.minimum, 2)} m³/s` : null);
+    add(F.days_below, d.days != null ? t("x_of_y", {x: num(d.days_below), y: num(d.days)}) : null);
   } else if (s.kind === "power_line") {
-    add("Elementos de riesgo alto", num(s.value?.amount));
+    add(F.high_risk, num(s.value?.amount));
   } else if (s.kind === "night_light") {
-    add("Brillo reciente", `${num(d.radiance, 2)} nW/cm²/sr (${d.years?.join("-")})`);
-    add("Brillo en 2012-2014", `${num(d.baseline, 2)} nW/cm²/sr`);
-    add("Esperable, como los igual de oscuros", `${num(d.expected, 2)} nW/cm²/sr`);
-    add("Píxeles VIIRS", num(d.pixels));
+    add(F.light_now, `${num(d.radiance, 2)} nW/cm²/sr (${d.years?.join("-")})`);
+    add(F.light_before, `${num(d.baseline, 2)} nW/cm²/sr`);
+    add(F.light_expected, `${num(d.expected, 2)} nW/cm²/sr`);
+    add(F.pixels, num(d.pixels));
   } else if (s.kind === "migration") {
-    add("Migración prevista", LEVEL[s.status] || esc(s.status));
+    add(F.migration, LEVEL[s.status] || STATUS(s));
   } else {
-    add("Estado", esc(s.status));
+    add(F.status, STATUS(s));
   }
-  if (s.kind !== "night_light") add("Precisión", PRECISION[s.precision]);  // its pixels are VIIRS, said above
+  if (s.kind !== "night_light") add(F.precision, PRECISION[s.precision]);  // its pixels are VIIRS, said above
   return out;
 }
 
 async function avisoView(source, id) {
   const s = D.signals.find(x => x.source === source && x.id === id);
-  if (!s) return notFound("ese aviso");
+  if (!s) return notFound(t("that_signal"));
   await munis();
   if (!location.hash.startsWith(aviso(s))) return;  // the reader moved on while the data loaded
   const d = s.details || {}, src = D.sources[s.source] || {name: s.source};
-  document.title = `${s.title.slice(0, 70)} · Estado de las IBA`;
+  document.title = `${s.title.slice(0, 70)} · ${T.title}`;
   const site = s.sites.length === 1 ? D.sitesByCode[s.sites[0].code] : null;
-  const zepas = s.sites.map(x => `<li><a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>${x.ha != null ? ` <span class="meta">${num(x.ha, x.ha < 10 ? 1 : 0)} ha dentro</span>` : ""}</li>`).join("");
+  const zepas = s.sites.map(x => `<li><a href="#/e/${esc(x.code)}">${esc(siteName(x.code))}</a>${x.ha != null ? ` <span class="meta">${t("ha_inside", {ha: num(x.ha, x.ha < 10 ? 1 : 0)})}</span>` : ""}</li>`).join("");
   const otros = (d.natura || []).filter(([c]) => !D.sitesByCode[c]);
   const munisHtml = s.municipalities.filter(i => M.byIne[i]).map(i => `<li><a href="#/m/${esc(i)}">${esc(M.byIne[i].name)}</a></li>`).join("");
   const fotos = d.before && d.after ? `<div class="fotos grandes">
-      <figure><img src="${esc(d.before)}" alt="Antes, ${esc(fecha(d.before_date))}"><figcaption>antes · ${fecha(d.before_date)}</figcaption></figure>
-      <figure><img src="${esc(d.after)}" alt="Después, ${esc(fecha(d.after_date))}"><figcaption>después · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
-  const original = ["notice", "resolution"].includes(s.kind) ? "Leer el anuncio en el boletín"
-    : s.kind === "night_light" ? "Ver el producto de la NASA" : `Ver en ${src.name}`;
+      <figure><img src="${esc(d.before)}" alt="${esc(t("Before"))}, ${esc(fecha(d.before_date))}"><figcaption>${t("before")} · ${fecha(d.before_date)}</figcaption></figure>
+      <figure><img src="${esc(d.after)}" alt="${esc(t("After"))}, ${esc(fecha(d.after_date))}"><figcaption>${t("after")} · ${fecha(d.after_date)}</figcaption></figure></div>` : "";
+  const original = ["notice", "resolution"].includes(s.kind) ? t("read_notice")
+    : s.kind === "night_light" ? t("see_nasa") : t("see_in", {name: src.name});
   $("#vista").innerHTML = `<div class="wrap">
-    <nav class="migas"><a href="#/">Inicio</a> › ${s.regions?.length ? regionLinks(s.regions) + " › " : ""}${site ? `<a href="#/e/${esc(site.code)}">${esc(site.name)}</a> › ` : ""}${esc((KIND[s.kind] || {}).tag || "Aviso")}</nav>
-    <div class="aviso-cab">${tag(s)} <span class="meta">${fecha(s.date)} · según ${esc(src.name)}</span>
+    <nav class="migas"><a href="#/">${t("home")}</a> › ${s.regions?.length ? regionLinks(s.regions) + " › " : ""}${site ? `<a href="#/e/${esc(site.code)}">${esc(site.name)}</a> › ` : ""}${esc((KIND[s.kind] || {}).tag || t("signal"))}</nav>
+    <div class="aviso-cab">${tag(s)} <span class="meta">${fecha(s.date)} · ${t("according_to")} ${esc(src.name)}</span>
       <h2>${esc(s.title)}</h2></div>
     <div class="lugar">
       <div>
         ${fotos}
-        <div class="lienzo aviso-mapa" id="aviso-mapa" role="region" aria-label="Dónde está"></div>
+        <div class="lienzo aviso-mapa" id="aviso-mapa" role="region" aria-label="${esc(t("where_is"))}"></div>
         ${MEANS[s.kind] ? `<p class="significa-txt">${esc(MEANS[s.kind])}${s.precision === "municipio" ? " " + esc(PREC_NOTE.municipio) : ""}</p>` : ""}
-        ${s.kind === "night_light" && site ? `<p><a href="#/e/${esc(site.code)}">La serie de 2012 a hoy, en la ficha de ${esc(site.name)}</a></p>` : ""}
+        ${s.kind === "night_light" && site ? `<p><a href="#/e/${esc(site.code)}">${t("light_series", {name: esc(site.name)})}</a></p>` : ""}
       </div>
       <aside>
-        <div class="panel"><h3>Datos</h3><dl class="datos">${datos(s).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl></div>
-        <div class="panel"><h3>Dónde</h3>
+        <div class="panel"><h3>${t("h_data")}</h3><dl class="datos">${datos(s).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl></div>
+        <div class="panel"><h3>${t("h_where")}</h3>
           ${zepas ? `<p class="meta" style="margin:0 0 4px">${esc(D.kind)}</p><ul class="lista-simple">${zepas}</ul>`
-            : `<p style="margin:0 0 6px">No cae dentro de ninguna ${esc(D.kind)}.</p>`}
-          ${otros.length ? `<p class="meta" style="margin:8px 0 4px">Otros espacios Natura 2000</p><ul class="lista-simple">${otros.map(([c, n, t]) => `<li>${esc(n || c)} <span class="meta">${esc(t || "")} ${esc(c)}</span></li>`).join("")}</ul>` : ""}
-          ${munisHtml ? `<p class="meta" style="margin:8px 0 4px">Municipios</p><ul class="municipios">${munisHtml}</ul>` : ""}</div>
-        <div class="panel"><h3>De dónde sale</h3>
-          <p style="margin:0 0 6px">${esc(src.name)}${src.watches ? ` vigila ${esc(src.watches)}` : ""}. Aquí se resume; el original tiene todo el detalle.</p>
+            : `<p style="margin:0 0 6px">${t("in_no_site", {kind: esc(D.kind)})}</p>`}
+          ${otros.length ? `<p class="meta" style="margin:8px 0 4px">${t("other_natura")}</p><ul class="lista-simple">${otros.map(([c, n, t]) => `<li>${esc(n || c)} <span class="meta">${esc(t || "")} ${esc(c)}</span></li>`).join("")}</ul>` : ""}
+          ${munisHtml ? `<p class="meta" style="margin:8px 0 4px">${t("munis")}</p><ul class="municipios">${munisHtml}</ul>` : ""}</div>
+        <div class="panel"><h3>${t("h_from")}</h3>
+          <p style="margin:0 0 6px">${esc(src.name)}${src.watches ? ` ${t("watches")} ${esc(src.watches)}` : ""}. ${t("summary_here")}</p>
           <a class="fuera" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(original)}</a></div>
         ${hilo([s])}
       </aside>
@@ -955,7 +932,7 @@ function route() {
   if (kind === "ca" && id) return regionView(decodeURIComponent(id));
   if (kind === "plazos") return plazos();
   if (kind === "a" && id && more) return avisoView(decodeURIComponent(id), decodeURIComponent(more));
-  if (/^ES[0-9A-Z]{7}$/.test(h)) { location.replace("#/e/" + h); return; }  // old v1 anchors
+  if (/^[A-Z]{2}[0-9A-Z]{7}$/.test(h) && D.sitesByCode[h]) { location.replace("#/e/" + h); return; }  // old v1 anchors
   home();
 }
 

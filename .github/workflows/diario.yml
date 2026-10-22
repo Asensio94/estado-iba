@@ -24,7 +24,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt pytest
       - run: python -m pytest -q
-      - run: python -m estado.cli build
+      - run: python -m estado.cli build  # Spain into docs/, France into docs/fr/
       - name: Commit docs
         run: |
           git config user.name "github-actions[bot]"

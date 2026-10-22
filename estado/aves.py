@@ -10,7 +10,10 @@ name the species and assess nothing: listed last, as N, so those sites do not lo
 
 Nothing here gives a number of birds or a place inside a site: the counts of the form are left out,
 and so is any row the State marked as sensitive (the public database already withholds most).
-The Spanish names come from estado/aves_es.tsv, keyed by the species code of the Birds Directive.
+The Spanish names come from estado/aves_es.tsv, keyed by the species code of the Birds Directive,
+and the French ones from estado/aves_fr.tsv: Wikidata's French labels, which follow the list of the
+Commission de l'avifaune française, checked by hand, and the subspecies of the forms named by hand.
+One file serves every country: each species carries its scientific name and one name per language.
 """
 
 from __future__ import annotations
@@ -33,15 +36,16 @@ ZIP_URL = ("https://sdi.eea.europa.eu/datashare/public.php/webdav/eea_t_natura20
            "Natura2000_end2024_rev1_csv.zip")
 SDF_URL = "https://natura2000.eea.europa.eu/Natura2000/SDF.aspx?site={code}"
 NAMES_FILE = Path(__file__).with_name("aves_es.tsv")
+NAMES_FR_FILE = Path(__file__).with_name("aves_fr.tsv")
 SEASONS = "prwc"  # all year, breeding, wintering, on passage: the order the panel shows them in
 GRADES = "ABC"  # share of the national population
 RANK = "ABCXND"  # best first: shares, overall value only (X), named only (N), not significant (D)
 
 
-def names(path: Path = NAMES_FILE) -> dict[str, str]:
-    """Spanish name per species code."""
+def names(path: Path = NAMES_FILE, column: str = "name_es") -> dict[str, str]:
+    """Name per species code, Spanish by default."""
     with path.open(encoding="utf-8", newline="") as f:
-        return {r["code"]: r["name_es"] for r in csv.DictReader(f, delimiter="\t")}
+        return {r["code"]: r[column] for r in csv.DictReader(f, delimiter="\t")}
 
 
 def read(path: str | Path) -> list[dict]:
@@ -63,8 +67,11 @@ def _grade(r: dict) -> str:
     return "X" if r["GLOBAL"] and r["GLOBAL"] in GRADES else "N"
 
 
-def by_site(rows: list[dict], codes, es: dict[str, str]) -> dict:
-    """Per site, the species it holds a significant share of, with their seasons and that share."""
+def by_site(rows: list[dict], codes, es: dict[str, str], fr: dict[str, str] | None = None) -> dict:
+    """Per site, the species it holds a significant share of, with their seasons and that share.
+
+    With French names, each species gets a third element, and a French site's birds are sorted by them.
+    """
     codes = set(codes)
     seen: dict[str, dict[str, dict]] = {}
     sci: dict[str, str] = {}
@@ -80,17 +87,25 @@ def by_site(rows: list[dict], codes, es: dict[str, str]) -> dict:
         if RANK.index(g) < RANK.index(x["grade"]):
             x["grade"] = g  # a species in several rows (breeding and wintering) keeps its best grade
 
-    def label(sp):
-        return es.get(sp) or sci[sp]
+    def label(sp, names=es):
+        return names.get(sp) or sci[sp]
 
     sites = {}
     for code, spp in sorted(seen.items()):
+        names = fr if fr is not None and code.startswith("FR") else es
         birds = sorted(([sp, "".join(s for s in SEASONS if s in x["seasons"]), x["grade"]]
-                        for sp, x in spp.items() if x["grade"] != "D"), key=lambda b: (RANK.index(b[2]), label(b[0])))
+                        for sp, x in spp.items() if x["grade"] != "D"),
+                       key=lambda b: (RANK.index(b[2]), label(b[0], names)))
         sites[code] = {"birds": birds, "other": sum(1 for x in spp.values() if x["grade"] == "D")}
-    used = sorted({b[0] for s in sites.values() for b in s["birds"]})
-    return {"species": {sp: [sci[sp], label(sp)] for sp in used}, "sites": sites,
-            "unnamed": [sp for sp in used if sp not in es]}
+
+    def used(prefix=""):
+        return sorted({b[0] for c, s in sites.items() if c.startswith(prefix) for b in s["birds"]})
+
+    out = {"species": {sp: [sci[sp], label(sp)] + ([label(sp, fr)] if fr is not None else []) for sp in used()},
+           "sites": sites, "unnamed": [sp for sp in used("" if fr is None else "ES") if sp not in es]}
+    if fr is not None:
+        out["unnamed_fr"] = [sp for sp in used("FR") if sp not in fr]
+    return out
 
 
 def download(dest: Path) -> Path:
@@ -109,9 +124,9 @@ def update(codes, out: Path, source: str | None = None, today: date | None = Non
             rows = read(download(Path(tmp) / "natura2000.zip"))
     else:
         rows = read(source)
-    got = by_site(rows, codes, names())
-    unnamed = got.pop("unnamed")
+    got = by_site(rows, codes, names(), names(NAMES_FR_FILE, "name_fr"))
+    unnamed, unnamed_fr = got.pop("unnamed"), got.pop("unnamed_fr")
     doc = {"source": f"Natura 2000 ({VERSION}), Agencia Europea de Medio Ambiente, CC BY 4.0", "doi": DOI,
-           "version": VERSION, "updated": (today or date.today()).isoformat(), **got}
+           "version": VERSION, "updated": (today or date.today()).isoformat(), "languages": ["es", "fr"], **got}
     out.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    return {"sites": len(got["sites"]), "species": len(got["species"]), "unnamed": unnamed}
+    return {"sites": len(got["sites"]), "species": len(got["species"]), "unnamed": unnamed, "unnamed_fr": unnamed_fr}

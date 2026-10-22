@@ -1,4 +1,9 @@
-"""python -m estado.cli build: read the sibling projects, turn them into signals and write docs/."""
+"""python -m estado.cli build: read the sibling projects, turn them into signals and write docs/.
+
+Country is a dimension: Spain is built into docs/ and France into docs/fr/, each with its own sites,
+municipalities, signals and page in its own language. France is built after Spain and on its own:
+whatever fails in France, Spain's panel is written all the same.
+"""
 
 from __future__ import annotations
 
@@ -11,21 +16,10 @@ from datetime import date, datetime, timezone
 from functools import partial
 from pathlib import Path
 
-from . import adapters as A, aves, config, contract, health as H, indicators as I, luz, places, sources, web
+from . import adapters as A, aves, config, contract, france, health as H, i18n, indicators as I, luz, places, sources, web
 
-# Name, link and what each source watches, as the site card says it.
-SOURCES = {
-    "observatorio-alegaciones": ("Observatorio de alegaciones", "proyectos en evaluación ambiental"),
-    "vigia-incendios": ("Vigía de incendios", "incendios"),
-    "centinela-natura": ("Centinela Natura", "cambios de uso del suelo"),
-    "vigilancia-humedales": ("Vigilancia de humedales", "agua de sus humedales"),
-    "caudal-ecologico": ("Caudal ecológico", "caudal de sus ríos frente al mínimo legal"),
-    "riesgo-tendidos-aves": ("Riesgo de tendidos para aves", "aerogeneradores y tendidos peligrosos"),
-    "sub-nocte": ("Sub Nocte", "migración nocturna"),
-    "zona-inundable": ("Zona inundable", "edificios construidos en zona inundable"),
-    "black-marble": ("NASA Black Marble", "luz artificial de noche"),
-    "depuracion-y-bano": ("Depuración y baño", "depuradoras que no cumplen y zonas de baño insuficientes"),
-}
+# Name and what each source watches, as the site card says it (each language has its own in i18n).
+SOURCES = i18n.PY["es"]["sources"]
 # sub-nocte works per city, zona-inundable and depuracion-y-bano per municipality: not per site
 SITE_LEVEL = {k for k in SOURCES if k not in ("sub-nocte", "zona-inundable", "depuracion-y-bano")}
 # Read here from open data rather than from a sibling: no signals.json to look for, and their own link.
@@ -43,20 +37,44 @@ def _try(name: str, fn, failed: list[str]):
         return None
 
 
-def _places() -> dict:
-    """The sites, the municipalities and communities around them, and the lookups built on both."""
-    sites = I.load_sites(sources.get_json(config.SITES_URL), config.SITE_KIND)
+def _sites(country: str = "ES") -> dict[str, dict]:
+    if country == "FR":
+        return france.load_sites(sources.get_json(france.SPA_URL))
+    return I.load_sites(sources.get_json(config.SITES_URL), config.SITE_KIND)
+
+
+def _places(country: str = "ES") -> dict:
+    """The sites, the municipalities and regions around them, and the lookups built on both."""
+    sites = _sites(country)
     shapes = {c: places.polygonal(s["geometry"]) for c, s in sites.items()}
-    topo = sources.get_json(config.MUNICIPALITIES_URL)
-    regs = places.regions(topo)
-    munis = places.municipalities(topo, sites, regs)
-    return {"sites": sites, "shapes": shapes, "regs": regs, "munis": munis,
+    if country == "FR":
+        ref = france.load_reference()
+        regs = places.regions_fr(ref)
+        munis = places.communes_fr(ref, sites)
+    else:
+        topo = sources.get_json(config.MUNICIPALITIES_URL)
+        regs = places.regions(topo)
+        munis = places.municipalities(topo, sites, regs)
+    return {"country": country, "sites": sites, "shapes": shapes, "regs": regs, "munis": munis,
             "site_reg": places.site_regions(munis, shapes, regs),
-            "resolve": partial(places.resolve, places.name_index(munis)), "locate": places.locator(munis, shapes)}
+            "resolve": partial(places.resolve, places.name_index(munis, country), country=country),
+            "locate": places.locator(munis, shapes)}
+
+
+def _light(p: dict) -> tuple[dict, list[dict]]:
+    path = config.LIGHT_FILES[p["country"]]
+    return A.luz(json.loads(path.read_text(encoding="utf-8")), p["shapes"], config.LIGHT_BASELINE,
+                 config.LIGHT_RECENT, config.LIGHT_MIN_RISE, config.LIGHT_MIN_ABS, config.LIGHT_MIN_PIXELS,
+                 config.LIGHT_PEERS, p["country"])
 
 
 def _adapters(p: dict, today: date) -> dict:
-    """How to read each sibling that does not publish its own signals.json yet (or never had another way)."""
+    """How to read each sibling that does not publish its own signals.json yet, or never had another way.
+
+    They all read Spain: elsewhere a sibling reaches the panel only through its signals.json.
+    """
+    if p["country"] != "ES":
+        return {"black-marble": lambda: _light(p)}
     sites, shapes, resolve, locate = p["sites"], p["shapes"], p["resolve"], p["locate"]
     return {
         "observatorio-alegaciones": lambda: A.observatorio(sources.get_json(config.PROJECTS_URL), resolve),
@@ -74,61 +92,84 @@ def _adapters(p: dict, today: date) -> dict:
             {r: sources.get_csv_dated(config.LINES_URL.format(region=r)) for r in config.LINE_REGIONS}, shapes),
         "sub-nocte": lambda: A.subnocte(sources.get_csv(config.MIGRATION_URL), resolve, today),
         "zona-inundable": lambda: A.unpublished("Toda España"),  # signals.json only
-        "black-marble": lambda: A.luz(
-            json.loads(config.LIGHT_FILE.read_text(encoding="utf-8")), shapes, config.LIGHT_BASELINE,
-            config.LIGHT_RECENT, config.LIGHT_MIN_RISE, config.LIGHT_MIN_ABS, config.LIGHT_MIN_PIXELS,
-            config.LIGHT_PEERS),
+        "black-marble": lambda: _light(p),
         "depuracion-y-bano": lambda: A.unpublished("Toda España"),  # signals.json only
     }
 
 
-def _read(name: str, adapter, p: dict, origin: dict[str, str]):
-    """The sibling's own signals.json when it publishes a valid one; its adapter otherwise."""
-    doc = None if name in OWN else sources.published(name)
+def _read(name: str, adapter, p: dict, origin: dict[str, str], docs: dict):
+    """The sibling's own signals.json when it publishes a valid one for this country; its adapter otherwise.
+
+    None when neither covers the country. Each signals.json is fetched once for every country.
+    """
+    if name not in OWN and name not in docs:
+        docs[name] = sources.published(name)
+    doc = docs.get(name)
     if doc is not None:
         try:
-            got = A.published(doc, name, p["resolve"], p["locate"])
-            origin[name] = "signals.json"
-            return got
+            got = A.published(doc, name, p["resolve"], p["locate"], p["country"])
+            if got is not None:
+                origin[name] = "signals.json"
+                return got
+            if adapter is None:  # the file is there, but says nothing of this country
+                return None
         except (KeyError, TypeError, ValueError):
             traceback.print_exc()
             print(f"[{name}] signals.json no válido: se lee con su adaptador", file=sys.stderr)
+    if adapter is None:
+        return None
     origin[name] = "adaptador"
     return adapter()
 
 
 def build(today: date | None = None) -> None:
     today = today or date.today()
+    docs: dict = {}
+    _build("ES", today, docs)
     failed: list[str] = []
-    p = _places()
+    _try("FR", lambda: _build("FR", today, docs), failed)
+    if failed:
+        print("Francia no se ha podido construir hoy; España sí.", file=sys.stderr)
+
+
+def _build(country: str, today: date, docs: dict) -> None:
+    lang = i18n.LANG_BY_COUNTRY[country]
+    T = i18n.PY[lang]
+    failed: list[str] = []
+    p = _places(country)
     sites, munis, regs, site_reg = p["sites"], p["munis"], p["regs"], p["site_reg"]
 
     origin: dict[str, str] = {}
     coverage, signals = {}, []
-    for name, adapter in _adapters(p, today).items():
-        got = _try(name, lambda: _read(name, adapter, p, origin), failed)
+    readers = _adapters(p, today)
+    for name in SOURCES:
+        got = _try(name, lambda: _read(name, readers.get(name), p, origin, docs), failed)
         if got:
             coverage[name], sig = got
             signals += sig
-        else:
-            coverage[name] = {"label": "sin datos hoy", "sites": [], "note": "La fuente no respondió en la última actualización."}
+        elif name in failed:
+            coverage[name] = {"label": T["no_data"], "sites": [], "note": T["no_data_note"], "failed": True}
+        else:  # nothing of this source reaches the country: grey on the map, never «nothing found»
+            coverage[name] = {"label": T["absent"], "sites": [], "note": T["absent_note"], "absent": True}
     signals = I.recent(signals, today, config.WINDOWS)
     signals = I.with_regions(I.restrict(signals, sites), {m["ine"]: m["region"] for m in munis}, site_reg)
 
-    ids = {s["id"] for s in signals if s["source"] == "observatorio-alegaciones"}
-    chains = _try("grafo-promotores", lambda: A.chains(sources.get_json(config.GRAFO_URL),
-                                                         sources.get_json(config.CARTERA_URL), ids), failed) or {}
+    chains = {}
+    if country == "ES":  # the BORME and the Spanish annual accounts
+        ids = {s["id"] for s in signals if s["source"] == "observatorio-alegaciones"}
+        chains = _try("grafo-promotores", lambda: A.chains(sources.get_json(config.GRAFO_URL),
+                                                             sources.get_json(config.CARTERA_URL), ids), failed) or {}
 
     n = I.summary(sites, signals, coverage, today)
     meta = {k: {"name": name, "url": OWN.get(k, f"{config.PAGES}/{k}/"),
                 "watches": watches, "site_level": k in SITE_LEVEL, "coverage": coverage[k]}
-            for k, (name, watches) in SOURCES.items()}
-    web.build(sites, n, signals, chains, meta, munis, regs, site_reg, datetime.now(timezone.utc), today)
+            for k, (name, watches) in T["sources"].items()}
+    web.build(sites, n, signals, chains, meta, munis, regs, site_reg, datetime.now(timezone.utc), today, country)
     by_kind: dict[str, int] = {}
     for s in signals:
         by_kind[s["kind"]] = by_kind.get(s["kind"], 0) + 1
     own = [k for k, v in origin.items() if v == "signals.json"]
-    print(f"{len(sites)} espacios · {len(signals)} señales {by_kind} · {len(chains)} actos con promotor"
+    print(f"{country}: {len(sites)} espacios · {len(signals)} señales {by_kind} · {len(chains)} actos con promotor"
           + f" · con signals.json propio: {', '.join(own) or 'ninguno'}"
           + (f" · fallaron: {', '.join(failed)}" if failed else ""))
 
@@ -138,17 +179,44 @@ def _sorted_sites(s: dict) -> dict:
 
 
 def check(name: str, where: str, today: date | None = None) -> bool:
-    """Compare a sibling's signals.json (a path or a URL) with what its adapter reads today.
+    """Check a sibling's signals.json (a path or a URL): its form, then what it says against its adapter.
 
-    Meant for the sibling's author before publishing: both sides go through the same reading as
-    in a build and keep only the panel's sites, so any difference is one the panel would show. The adapter reads what is live, so
-    a file made from newer data differs by the newest facts.
+    First the JSON Schema of the contract (signals.schema.json), versions 1 and 2. Then its
+    Spanish part is compared with what the adapter reads today: both sides go through the same
+    reading as in a build and keep only the panel's sites, so any difference is one the panel would
+    show. The adapter reads what is live, so a file made from newer data differs by the newest facts.
+    Its other countries have no adapter to compare with: what the panel would keep is reported.
     """
     today = today or date.today()
     doc = sources.get_json(where) if where.startswith("http") else json.loads(Path(where).read_text(encoding="utf-8"))
-    p = _places()
-    cov_new, new = A.published(doc, name, p["resolve"], p["locate"])
-    cov_old, old = _adapters(p, today)[name]()
+    errors = A.schema_errors(doc)
+    for e in errors[:20]:
+        print(f"esquema: {e}")
+    if errors:
+        print(f"No cumple el esquema ({len(errors)} errores).")
+        return False
+    print(f"Cumple el esquema (versión {doc['version']}).")
+    same = True
+    for country in config.COUNTRIES:
+        if country != "ES":
+            if doc["version"] == 2 and country in doc["coverage"]:
+                p = _places(country)
+                _, sig = A.published(doc, name, p["resolve"], p["locate"], country)
+                kept = I.restrict(I.recent(sig, today, config.WINDOWS), p["sites"])
+                print(f"{country}: {len(sig)} señales válidas, {len(kept)} en sus {len(p['sites'])} espacios")
+            continue
+        p = _places("ES")
+        got = A.published(doc, name, p["resolve"], p["locate"])
+        if got is None:
+            print("ES: el fichero no cubre España.")
+            continue
+        same = _compare(got, _adapters(p, today)[name](), p, today) and same
+    print("Iguales." if same else "Hay diferencias.")
+    return same
+
+
+def _compare(published: tuple[dict, list[dict]], adapted: tuple[dict, list[dict]], p: dict, today: date) -> bool:
+    (cov_new, new), (cov_old, old) = published, adapted
     # Only the panel's sites count: a ZEC code a sibling also sends never shows here.
     new, old = ({s["id"]: _sorted_sites(s) for s in I.restrict(I.recent(x, today, config.WINDOWS), p["sites"])}
                 for x in (new, old))
@@ -181,25 +249,43 @@ def check(name: str, where: str, today: date | None = None) -> bool:
     for f, diffs in sorted(fields.items()):
         same = False
         print(f"{f} distinto en {len(diffs)}: " + " | ".join(diffs[:3]))
-    print("Iguales." if same else "Hay diferencias.")
     return same
 
 
-def light(today: date | None = None) -> None:
-    """Bring the night-light series of every site up to date (downloads from NASA; see luz.py)."""
-    sites = I.load_sites(sources.get_json(config.SITES_URL), config.SITE_KIND)
-    shapes = {c: places.polygonal(s["geometry"]) for c, s in sites.items()}
-    doc = luz.update(shapes, config.LIGHT_FILE, today or date.today())
-    print(f"{len(doc['sites'])} espacios · años {doc['years'][0] if doc['years'] else '—'}-"
-          f"{doc['years'][-1] if doc['years'] else '—'} · actualizado {doc['updated']}")
+def light(today: date | None = None, countries=config.COUNTRIES) -> None:
+    """Bring the night-light series of every site up to date (downloads from NASA; see luz.py).
+
+    Each country is its own file. One that fails does not stop the other, but the run still fails.
+    """
+    failed: list[str] = []
+    for country in countries:
+        def one():
+            sites = _sites(country)
+            shapes = {c: places.polygonal(s["geometry"]) for c, s in sites.items()}
+            path = config.LIGHT_FILES[country]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            doc = luz.update(shapes, path, today or date.today())
+            print(f"{country}: {len(doc['sites'])} espacios · años {doc['years'][0] if doc['years'] else '—'}-"
+                  f"{doc['years'][-1] if doc['years'] else '—'} · actualizado {doc['updated']}")
+        _try(country, one, failed)
+    if failed:
+        sys.exit(1)
 
 
 def birds(source: str | None, today: date | None = None) -> None:
-    """Write the birds each site was designated for (downloads the Natura 2000 release; see aves.py)."""
-    sites = I.load_sites(sources.get_json(config.SITES_URL), config.SITE_KIND)
+    """Write the birds each site was designated for, in every country (downloads the Natura 2000 release; see aves.py)."""
+    sites = {c: s for country in config.COUNTRIES for c, s in _sites(country).items()}
     got = aves.update(sites, config.BIRDS_FILE, source, today)
     print(f"{got['sites']} de {len(sites)} espacios con aves · {got['species']} especies"
-          + (f" · sin nombre en castellano: {', '.join(got['unnamed'])}" if got["unnamed"] else ""))
+          + (f" · sin nombre en castellano: {', '.join(got['unnamed'])}" if got["unnamed"] else "")
+          + (f" · sin nombre en francés: {', '.join(got['unnamed_fr'])}" if got["unnamed_fr"] else ""))
+
+
+def communes(today: date | None = None) -> None:
+    """Download France's communes and regions from the IGN once a year (see france.py)."""
+    got = france.download(today=today)
+    print(f"{got['regions']} regiones · {got['departments']} departamentos · {got['communes']} municipios · "
+          f"{got['bytes'] / 1e6:.1f} MB en {france.REF_FILE.name}")
 
 
 def validate(name: str, where: str) -> bool:
@@ -230,9 +316,10 @@ def health(today: date, issue: bool) -> bool:
 
 def main() -> None:
     ap = argparse.ArgumentParser(prog="estado")
-    ap.add_argument("command", choices=["build", "check", "validate", "health", "luz", "aves"])
-    ap.add_argument("source", nargs="?", 
-                    help="check, validate: the sibling's repository name; aves: the release zip, if already downloaded")
+    ap.add_argument("command", choices=["build", "check", "validate", "health", "luz", "aves", "communes"])
+    ap.add_argument("source", nargs="?",
+                    help="check, validate: the sibling's repository name; aves: the release zip, if already "
+                         "downloaded; luz: ES or FR, both if left out")
     ap.add_argument("signals", nargs="?", help="check, validate: its signals.json, a path or a URL")
     ap.add_argument("--today", type=date.fromisoformat, default=None)
     ap.add_argument("--issue", action="store_true", help="health: open, update or close the health issue")
@@ -240,9 +327,13 @@ def main() -> None:
     if args.command == "build":
         build(args.today)
     elif args.command == "luz":
-        light(args.today)
+        if args.source and args.source not in config.COUNTRIES:
+            ap.error(f"luz takes a country: {', '.join(config.COUNTRIES)}")
+        light(args.today, [args.source] if args.source else config.COUNTRIES)
     elif args.command == "aves":
         birds(args.source, args.today)
+    elif args.command == "communes":
+        communes(args.today)
     elif args.command == "health":
         ok = health(args.today or datetime.now(timezone.utc).date(), args.issue)
         sys.exit(0 if ok or args.issue else 1)  # with --issue the alert is the issue, not a red run
