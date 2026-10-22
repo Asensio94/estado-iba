@@ -12,7 +12,7 @@ Casi nada lo mide por sí mismo: cada día reúne lo que ya publican los proyect
 
 **Web:** https://asensio94.github.io/estado-iba/ · en francés, para Francia: https://asensio94.github.io/estado-iba/fr/
 
-Por ahora la unidad son las **ZEPA** de la Red Natura 2000, que son datos abiertos: 658 espacios, incluidos los que son a la vez ZEC y ZEPA. Las IBA de SEO/BirdLife sustituirán a las ZEPA cuando su reutilización esté acordada. El código no depende de la capa: basta con cambiar `SITES_URL` y `SITE_KIND` en `estado/config.py`, siempre que los proyectos hermanos crucen con los mismos códigos.
+**Por ahora, cada ficha es una ZEPA, no una IBA.** Las IBA (*Important Bird and Biodiversity Areas*, áreas importantes para las aves y la biodiversidad) son un inventario científico de BirdLife International, que en España lleva SEO/BirdLife; no son una figura legal. Las **ZEPA** (zonas de especial protección para las aves, Directiva Aves) son la figura legal de la Red Natura 2000 que suele coincidir, en todo o en parte, con las IBA, y sus límites son datos abiertos: 658 espacios, incluidos los que son a la vez ZEC (zona especial de conservación, Directiva Hábitats) y ZEPA. En Francia la misma figura se llama ZPS. Los límites oficiales de las IBA no se usan todavía: sustituirán a las ZEPA cuando BirdLife autorice por escrito su reutilización. El código no depende de la capa: basta con cambiar `SITES_URL` y `SITE_KIND` en `estado/config.py`, siempre que los proyectos hermanos crucen con los mismos códigos.
 
 > **Estado: activo.** Se actualiza solo y sigue en desarrollo.
 
